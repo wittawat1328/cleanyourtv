@@ -144,7 +144,7 @@ const tv=document.getElementById('tv'),view=document.getElementById('view'),apps
 const zones=['utils','apps','continue','featured','episodes'];
 const defaultIds=['youtube','netflix','browser','prime','disney','settings'];
 const sceneDefault={title:'ข้ามฟ้าสู่ดาว',shade:'default',subtitle:'ซีรีส์ไซไฟ · EP 03'};
-let active=document.querySelector('.app'),moveMode=false,snapshot=[],timer=null,holdStarted=0,toastTimer=null,holdFired=false;
+let active=document.querySelector('.app'),moveMode=false,snapshot=[],timer=null,holdStarted=0,toastTimer=null,holdFired=false,suppressEnterKeyup=false;
 function children(zone){return Array.from(document.querySelectorAll('[data-zone="'+zone+'"]')).filter(e=>e.matches('button'));}
 function zone(el){return el?el.dataset.zone:'apps';}
 function focus(el){if(!el)return;if(active)active.classList.remove('is-focused');active=el;active.classList.add('is-focused');if(el.closest('.view')){el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});}if(el.classList.contains('cover'))showScene(el.dataset.title,el.dataset.shade,el.dataset.subtitle);if(el.dataset.zone==='apps'){if(!moveMode)document.getElementById('move-help').textContent='กดค้าง OK 2 วินาทีเพื่อจัดลำดับ';}}
@@ -172,16 +172,16 @@ document.addEventListener('keydown',event=>{
  const key=event.key===' ' ? 'Enter':event.key;
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Escape','Backspace'].includes(key))return;
  event.preventDefault();
- if(overlay.classList.contains('open')){if(key==='Escape'||key==='Backspace'||key==='Enter')closeDetails();return;}
+ if(overlay.classList.contains('open')){if(key==='Escape'||key==='Backspace'||key==='Enter')closeDetails();if(key==='Enter')suppressEnterKeyup=true;return;}
  if(key==='Enter'){
   if(event.repeat)return;
-  if(moveMode){navigate('Enter');return;}
+  if(moveMode){suppressEnterKeyup=true;navigate('Enter');return;}
   beginHold();
   return;
  }
  navigate(key==='Backspace'?'Escape':key);
 });
-document.addEventListener('keyup',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const fired=endHold();if(!fired&&!moveMode&&!overlay.classList.contains('open'))navigate('Enter');});
+document.addEventListener('keyup',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const fired=endHold();if(suppressEnterKeyup){suppressEnterKeyup=false;return;}if(!fired&&!moveMode&&!overlay.classList.contains('open'))navigate('Enter');});
 document.querySelectorAll('[data-remote]').forEach(button=>{button.addEventListener('click',()=>{if(button.dataset.remote==='Enter'){navigate('Enter');}else navigate(button.dataset.remote);tv.focus({preventScroll:true});});});
 document.querySelectorAll('button[data-zone]').forEach(button=>{
  button.addEventListener('pointerdown',()=>{if(button.dataset.zone==='apps'){focus(button);beginHold();}});
