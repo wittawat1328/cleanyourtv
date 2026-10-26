@@ -1,5 +1,200 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CleanYourTV Safe Preview</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0d1423;color:white;font:500 16px/1.5 system-ui,"Noto Sans Thai",sans-serif}.wrap{max-width:1200px;margin:auto;padding:20px}h1{font-size:24px;margin:0}p{color:#b9cce1}.tv{border:1px solid #5e7297;border-radius:17px;overflow:hidden;aspect-ratio:16/9;position:relative;background:radial-gradient(circle at 70% 18%,#385376,transparent 44%),linear-gradient(120deg,#0b203c,#111522)}.tv.aurora{background:radial-gradient(circle at 75% 15%,#b383b0,transparent 45%),linear-gradient(120deg,#242a52,#4b2d5e)}.tv.ocean{background:radial-gradient(circle at 75% 15%,#45b9cf,transparent 45%),linear-gradient(120deg,#051b39,#145b75)}.tv.forest{background:radial-gradient(circle at 75% 15%,#83c18b,transparent 45%),linear-gradient(120deg,#0b2527,#125743)}.screen{height:100%;display:flex;flex-direction:column;padding:3% 5%}.top,.foot{display:flex;justify-content:space-between;align-items:center;font-size:clamp(9px,1.3vw,18px)}.top b{letter-spacing:.1em}.clock{font-size:clamp(19px,3vw,40px);font-weight:300}.hero{margin-top:auto;margin-bottom:3%}.hero small{font-size:clamp(9px,1.4vw,17px);opacity:.8}.hero h2{font-size:clamp(24px,4.8vw,58px);margin:0 0 2px}.hero p{margin:0;font-size:clamp(9px,1.2vw,15px)}.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.5%;margin-bottom:3%}.tile{color:white;cursor:pointer;font-size:clamp(8px,1.3vw,17px);font-weight:750;border:2px solid #ffffff50;background:#3b5377;border-radius:clamp(6px,1.4vw,17px);aspect-ratio:1.8;min-width:0;transition:.15s}.tile:nth-child(1){background:#ba1d2d}.tile:nth-child(2){background:#112b71}.tile:nth-child(3){background:#165c89}.tile:nth-child(4){background:#363844}.tile:nth-child(5){background:#166654}.tile.active{outline:2px solid #b7e9ff;border-color:white;transform:scale(1.05);box-shadow:0 10px 30px #0007}.foot{opacity:.8}.tools{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:18px}.panel{border:1px solid #31465e;background:#172638;border-radius:12px;padding:14px}.panel h3{margin:0 0 12px;font-size:15px}.ctrl{padding:9px 13px;margin:2px;background:#2d4662;color:white;border:1px solid #7087a7;border-radius:10px;cursor:pointer}.ctrl.selected{background:#eff8ff;color:#162239}.overlay{position:absolute;inset:0;background:#010814b9;display:none;align-items:center;justify-content:center}.overlay.on{display:flex}.dialog{text-align:center;background:#14263d;border:1px solid #778aa7;border-radius:13px;padding:26px}.dialog p{font-size:13px}@media(max-width:650px){.tools{grid-template-columns:1fr}.wrap{padding:12px}.tv{border-radius:8px}h1{font-size:21px}}
-</style></head><body><main class="wrap"><h1>CleanYourTV · Safe Preview</h1><p>UI จำลองบนมือถือ — ไม่เชื่อมต่อทีวีจริงและไม่เรียก ADB</p><section id="tv" class="tv" tabindex="0"><div class="screen"><div class="top"><b>◉ CLEAN YOUR TV</b><span>● Wi-Fi · Demo</span><span class="clock">20:26</span></div><div class="hero"><small>WELCOME HOME</small><h2 id="hero">YouTube</h2><p>เลือกแอปด้วยปุ่มรีโมตด้านล่าง</p></div><div class="tiles"><button class="tile active" data-name="YouTube">▶ YouTube</button><button class="tile" data-name="Netflix">NETFLIX</button><button class="tile" data-name="Prime Video">prime video</button><button class="tile" data-name="Live TV">LIVE TV</button><button class="tile" data-name="Settings">⚙ Settings</button></div><div class="foot"><span>← ↑ ↓ → เลือก · OK ดูตัวอย่าง</span><span>PREVIEW ONLY</span></div></div><div id="overlay" class="overlay" role="dialog"><div class="dialog"><h3 id="dialog-title">Preview</h3><p>นี่เป็นตัวอย่าง ไม่ได้เปิดแอปบนทีวีจริง</p><button id="close" class="ctrl">ปิด</button></div></div></section><div class="tools"><div class="panel"><h3>ธีมตัวอย่าง</h3><button class="ctrl selected" data-theme="default">Midnight</button><button class="ctrl" data-theme="aurora">Aurora</button><button class="ctrl" data-theme="ocean">Ocean</button><button class="ctrl" data-theme="forest">Forest</button></div><div class="panel"><h3>รีโมตจำลอง</h3><button class="ctrl" data-key="ArrowLeft">◀</button><button class="ctrl" data-key="ArrowUp">▲</button><button class="ctrl" data-key="Enter">OK</button><button class="ctrl" data-key="ArrowDown">▼</button><button class="ctrl" data-key="ArrowRight">▶</button><button class="ctrl" data-key="Escape">Back</button></div></div></main><script>
-(function(){'use strict';var tv=document.getElementById('tv'),tiles=Array.from(document.querySelectorAll('.tile')),hero=document.getElementById('hero'),overlay=document.getElementById('overlay'),i=0;function choose(n){i=(n+tiles.length)%tiles.length;tiles.forEach(function(t,x){t.classList.toggle('active',x===i);});hero.textContent=tiles[i].dataset.name;}function press(k){if(overlay.classList.contains('on')){if(k==='Enter'||k==='Escape')overlay.classList.remove('on');return;}if(k==='ArrowRight'||k==='ArrowDown')choose(i+1);if(k==='ArrowLeft'||k==='ArrowUp')choose(i-1);if(k==='Enter'){document.getElementById('dialog-title').textContent=tiles[i].dataset.name;overlay.classList.add('on');}}document.addEventListener('keydown',function(e){if(['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter','Escape'].includes(e.key)){e.preventDefault();press(e.key);}});document.querySelectorAll('[data-key]').forEach(function(b){b.addEventListener('click',function(){press(b.dataset.key);tv.focus({preventScroll:true});});});tiles.forEach(function(t,x){t.addEventListener('click',function(){choose(x);press('Enter');});});document.getElementById('close').addEventListener('click',function(){overlay.classList.remove('on');});document.querySelectorAll('[data-theme]').forEach(function(b){b.addEventListener('click',function(){tv.className='tv'+(b.dataset.theme==='default'?'':' '+b.dataset.theme);document.querySelectorAll('[data-theme]').forEach(function(x){x.classList.toggle('selected',x===b);});});});})();
-</script></body></html>
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>CleanYourTV • Apple-inspired UI V1 Preview</title>
+<style>
+:root{color-scheme:dark;--fg:#f9faff;--muted:#c3c7d3;--soft:#9fa8bb;--glass:#111724dc;--line:#ffffff22;--accent:#dbeaff}
+*{box-sizing:border-box}
+body{margin:0;background:#08090d;color:var(--fg);font:500 15px/1.5 system-ui,-apple-system,"Noto Sans Thai",sans-serif}
+.wrap{max-width:1480px;margin:auto;padding:22px 16px 45px}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.heading h1{margin:0;font-size:22px;font-weight:720;letter-spacing:-.04em}
+.heading p{margin:3px 0 0;color:#abb4c2;font-size:13px}
+.chip{font-size:11px;color:#c9d8ef;padding:7px 11px;border-radius:999px;border:1px solid #41516a}
+.tv{position:relative;container-type:inline-size;aspect-ratio:16/9;min-height:290px;border-radius:18px;overflow:hidden;background:#090a0e;border:1px solid #414854;box-shadow:0 30px 90px #000a}
+.view{height:100%;overflow:auto;scrollbar-width:none;scroll-behavior:smooth}
+.view::-webkit-scrollbar{display:none}
+.topbar{height:8cqw;padding:1.4cqw 4.4cqw;display:flex;align-items:flex-start;justify-content:space-between;gap:3cqw;position:absolute;inset:0 0 auto;z-index:3;pointer-events:none;background:linear-gradient(#080a12a6,transparent)}
+.identity{font-weight:850;letter-spacing:.07em;font-size:1.32cqw;display:flex;align-items:center;gap:.7cqw;white-space:nowrap}
+.identity .mark{font-size:1.7cqw;color:#e8eefc}
+.topright{display:flex;align-items:center;gap:1.1cqw;pointer-events:auto}
+.time{font-size:1.4cqw;font-weight:500;padding:.5cqw;opacity:.94}
+.utils{display:flex;gap:.4cqw}
+.utility{border:1px solid transparent;color:#f3f5fa;background:#ffffff14;backdrop-filter:blur(4px);border-radius:50%;width:3.3cqw;height:3.3cqw;font-size:1.6cqw;display:grid;place-items:center;cursor:pointer}
+.utility:focus-visible,.utility.selected{border-color:white;background:#ffffff3a}
+.hero{height:47cqw;position:relative;overflow:hidden;background:#0e1725}
+.scene{position:absolute;inset:0;overflow:hidden;transition:opacity .3s;opacity:1;background:radial-gradient(ellipse at 76% 29%,#a8bbc5c9 0%,#53667984 14%,transparent 36%),radial-gradient(ellipse at 69% 38%,#657d9e77 0%,transparent 42%),linear-gradient(125deg,#0b0d15 4%,#111a2a 41%,#253a52 78%,#10131f)}
+.scene:before{content:"";position:absolute;left:43%;top:13%;width:48cqw;height:48cqw;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e1d8bd 0%,#868e9f 27%,#334459 57%,#0a1121 75%);opacity:.6;box-shadow:0 0 12cqw #aec5ef22}
+.scene:after{content:"";position:absolute;left:34%;right:-10%;bottom:-20%;height:49%;background:linear-gradient(5deg,#03070f,#091d2d);clip-path:polygon(0% 100%,3% 46%,13% 64%,26% 14%,35% 60%,49% 35%,60% 61%,76% 12%,90% 57%,100% 38%,100% 100%)}
+.hero.shade-ocean .scene{background:radial-gradient(ellipse at 70% 18%,#b5b1bb77,transparent 37%),linear-gradient(130deg,#101018,#234459,#1a5e7a)}
+.hero.shade-ocean .scene:before{background:radial-gradient(circle at 30% 30%,#e2cd8d,#166585 48%,#04384a 75%)}
+.hero.shade-amber .scene{background:radial-gradient(ellipse at 76% 30%,#e09a5d8a,transparent 36%),linear-gradient(130deg,#191115,#6f332f,#2c121c)}
+.hero.shade-amber .scene:before{background:radial-gradient(circle at 35% 30%,#ffcf96,#b25935 56%,#371b20 72%)}
+.hero.shade-violet .scene{background:radial-gradient(ellipse at 77% 26%,#bbafd58c,transparent 35%),linear-gradient(130deg,#0b0d1c,#332c5a,#21162d)}
+.hero.shade-violet .scene:before{background:radial-gradient(circle at 35% 30%,#bea6ce,#654679 56%,#17122e 78%)}
+.vignette{position:absolute;inset:0;background:linear-gradient(90deg,#080b13f7 2%,#070a13e0 19%,#0608138c 49%,transparent 80%),linear-gradient(0deg,#090a0f 0%,transparent 45%)}
+.hero-copy{position:absolute;left:4.6cqw;top:16.4cqw;z-index:1;width:49cqw}
+.eyebrow{font-size:1.18cqw;letter-spacing:.16em;font-weight:800;color:#d2d8e7}
+.hero-title{font-size:5.2cqw;line-height:1.05;margin:.9cqw 0 .5cqw;letter-spacing:-.065em;font-weight:780;text-shadow:0 3px 15px #0005}
+.hero-meta{display:flex;align-items:center;gap:1.4cqw;color:#d7dce5;font-size:1.15cqw}
+.hero-copy p{color:#c4c9d3;font-size:1.3cqw;line-height:1.6;max-width:44cqw;margin:1.4cqw 0 2.3cqw}
+.hero-actions{display:flex;gap:1cqw}
+.action{border:0;border-radius:.7cqw;padding:1.05cqw 2.3cqw;font-size:1.3cqw;font-weight:770;cursor:pointer;color:#f8fbff;background:#ffffff3b}
+.action.primary{color:#13151a;background:#f6f8fc}
+.action:focus-visible{outline:2px solid white;outline-offset:3px}
+.progress{margin-top:1.6cqw;width:17cqw;height:.34cqw;border-radius:1cqw;background:#ffffff3d;overflow:hidden}
+.progress i{display:block;width:43%;height:100%;background:#f5f7fb}
+.section{position:relative;z-index:2;padding:0 4.6cqw;margin-top:-.5cqw}
+.section.app-section{margin-top:-5.2cqw}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:1cqw;margin-bottom:1.35cqw}
+.section h3{margin:0;font-size:1.65cqw;letter-spacing:-.025em}
+.section-note{font-size:1.15cqw;color:var(--soft)}
+.apps{display:flex;gap:1.15cqw;overflow-x:auto;overflow-y:visible;padding:.8cqw .25cqw 1.6cqw;scroll-snap-type:x proximity;scrollbar-width:none}
+.apps::-webkit-scrollbar,.covers::-webkit-scrollbar{display:none}
+.app{flex:0 0 14.3cqw;height:8.5cqw;border:1px solid #ffffff44;background:#1b1e29;border-radius:1.05cqw;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.28cqw;color:white;cursor:pointer;scroll-snap-align:center;position:relative;transition:transform .18s ease,box-shadow .18s,border-color .18s}
+.app .symbol{font-size:3.3cqw;line-height:1.2;font-weight:820;letter-spacing:-.07em}
+.app .appname{font-size:1.1cqw;letter-spacing:.01em;font-weight:600;opacity:.89}
+.app[data-id="youtube"]{background:linear-gradient(145deg,#b30922,#641018)}
+.app[data-id="netflix"]{background:linear-gradient(145deg,#26212c,#09090e)}
+.app[data-id="browser"]{background:linear-gradient(140deg,#244d75,#16304f)}
+.app[data-id="prime"]{background:linear-gradient(145deg,#206da7,#0c3c65)}
+.app[data-id="disney"]{background:linear-gradient(145deg,#1c3674,#0c1838)}
+.app[data-id="settings"]{background:linear-gradient(145deg,#3b4654,#252a36)}
+.app.is-focused,.cover.is-focused,.utility.is-focused{border-color:#fff;outline:2px solid #f6f8ff;outline-offset:2px;transform:scale(1.055);box-shadow:0 0 0 .4cqw #ffffff24,0 1.3cqw 3cqw #0009}
+.app.is-moving{outline-color:#80d9ff;box-shadow:0 0 0 .6cqw #66c9fe4c}
+.move-pill{position:absolute;right:.5cqw;top:.45cqw;border-radius:99px;background:#ffffff2a;padding:.1cqw .5cqw;font-size:.88cqw}
+.content-section{margin-top:1.1cqw;padding-bottom:1.25cqw}
+.covers{display:flex;gap:1.25cqw;overflow-x:auto;padding:.6cqw .45cqw 1.4cqw;scrollbar-width:none;scroll-snap-type:x mandatory}
+.cover{position:relative;flex:0 0 21.5cqw;aspect-ratio:16/9;border:1px solid #ffffff35;border-radius:1cqw;background:linear-gradient(135deg,#223b52,#577788 70%,#1b2d40);color:white;text-align:left;padding:1.2cqw;display:flex;flex-direction:column;justify-content:end;overflow:hidden;scroll-snap-align:center;cursor:pointer;transition:transform .16s,box-shadow .16s}
+.cover:before{content:"";position:absolute;width:16cqw;height:16cqw;border-radius:50%;top:-4cqw;right:-4cqw;background:radial-gradient(circle at 30% 30%,#cbd9d8b9,#2f506380 67%,transparent 70%)}
+.cover:after{content:"";position:absolute;inset:36% 0 0;background:linear-gradient(transparent,#000b)}
+.cover.violet{background:linear-gradient(130deg,#1c1c43,#665c9d,#2b244a)}
+.cover.amber{background:linear-gradient(130deg,#382020,#9c5a38,#211924)}
+.cover.teal{background:linear-gradient(130deg,#153436,#3a8d89,#15242e)}
+.cover .cardtag,.cover strong,.cover small{position:relative;z-index:1}
+.cover .cardtag{font-size:1cqw;color:#e6e9f2;margin-bottom:auto;letter-spacing:.08em}
+.cover strong{font-size:1.65cqw;line-height:1.2;letter-spacing:-.025em}
+.cover small{font-size:1.03cqw;color:#d6d9e3}
+.episode .cover{flex-basis:19cqw;aspect-ratio:1.87}
+.episode .cover strong{font-size:1.35cqw}
+.safe-note{color:#7d889d;font-size:1cqw;text-align:center;padding:1.8cqw}
+.overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#05070edb;z-index:10;padding:2.5cqw}
+.overlay.open{display:flex}
+.dialog{width:min(66cqw,720px);border:1px solid #ffffff38;border-radius:1.3cqw;background:#171b29;box-shadow:0 3cqw 8cqw #000e;padding:3cqw}
+.dialog h2{font-size:2.6cqw;margin:.3cqw 0}
+.dialog p{font-size:1.4cqw;color:#bac5d6}
+.dialog button{border:1px solid #ffffff68;color:white;background:#343b4e;border-radius:.7cqw;padding:1cqw 2cqw;cursor:pointer}
+.toast{position:absolute;left:50%;bottom:2.2cqw;transform:translateX(-50%);z-index:7;background:#f1f6fff0;color:#162038;padding:.75cqw 1.4cqw;border-radius:1cqw;font-size:1.2cqw;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .22s}
+.toast.on{opacity:1}
+.controls{display:flex;gap:12px;align-items:start;margin-top:17px;flex-wrap:wrap}
+.panel{border:1px solid #343b4a;background:#14171e;padding:13px;border-radius:12px;flex:1;min-width:260px}
+.panel h4{margin:0 0 9px;font-size:14px}
+.panel button{background:#222b3a;border:1px solid #53637c;border-radius:9px;color:white;min-width:46px;padding:9px 12px;cursor:pointer}
+.help{color:#a7b0bf;font-size:12px;margin:8px 0 0}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+@media(max-width:700px){.wrap{padding:12px 6px}.heading h1{font-size:19px}.tv{border-radius:9px;min-height:0}.panel{min-width:180px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="heading"><div><h1>CleanYourTV · Entertainment Home V1</h1><p>Hisense Android TV 11 · Apple TV inspired · โหมดดูตัวอย่าง (ข้อมูลภาพยนตร์สมมติ)</p></div><span class="chip">SAFE PREVIEW · NO ADB</span></header>
+<section class="tv" id="tv" aria-label="TV UI preview">
+<div class="topbar"><div class="identity"><span class="mark">◈</span> CLEAN YOUR TV <span style="color:#96a2b7;font-weight:500">/ HOME</span></div><div class="topright"><div class="utils" id="utils"><button class="utility" data-zone="utils" data-id="inputs" title="HDMI / Inputs" aria-label="HDMI และ Inputs">▣</button><button class="utility" data-zone="utils" data-id="search" title="ค้นหา" aria-label="ค้นหา">⌕</button><button class="utility" data-zone="utils" data-id="settings-shortcut" title="ตั้งค่า" aria-label="ตั้งค่า">⚙</button></div><span class="time">20:26</span></div></div>
+<div class="view" id="view">
+<section class="hero shade-default" id="hero"><div class="scene"></div><div class="vignette"></div><div class="hero-copy"><div class="eyebrow" id="hero-tag">EXCLUSIVE · CONTINUE WATCHING</div><h2 class="hero-title" id="hero-title">ข้ามฟ้าสู่ดาว</h2><div class="hero-meta" id="hero-meta"><span>ซีรีส์ไซไฟ</span><span>2026</span><span>4K UHD</span><span>EP 03</span></div><p id="hero-summary">เมื่อแสงสุดท้ายบนขอบฟ้าพาผู้เดินทางกลับไปพบปริศนาที่ไม่เคยถูกเปิดเผย</p><div class="hero-actions"><button class="action primary" data-action="play">▶ เล่นต่อ</button><button class="action" data-action="details">ดูรายละเอียด</button></div><div class="progress"><i></i></div></div></section>
+<section class="section app-section" aria-label="Applications" id="applications"><div class="section-head"><h3>แอปของคุณ</h3><span class="section-note" id="move-help">กดค้าง OK 2 วินาทีเพื่อจัดลำดับ</span></div><div class="apps" id="apps" data-zone="apps">
+<button class="app is-focused" data-zone="apps" data-id="youtube"><span class="symbol">▶</span><span class="appname">YouTube</span></button>
+<button class="app" data-zone="apps" data-id="netflix"><span class="symbol" style="color:#ed1d36">N</span><span class="appname">Netflix</span></button>
+<button class="app" data-zone="apps" data-id="browser"><span class="symbol">◎</span><span class="appname">Browser</span></button>
+<button class="app" data-zone="apps" data-id="prime"><span class="symbol" style="font-size:2.5cqw">prime</span><span class="appname">Prime Video</span></button>
+<button class="app" data-zone="apps" data-id="disney"><span class="symbol" style="font-size:2.5cqw">Disney+</span><span class="appname">Disney+</span></button>
+<button class="app" data-zone="apps" data-id="settings"><span class="symbol">⚙</span><span class="appname">Settings</span></button>
+</div></section>
+<section class="section content-section" aria-label="Continue Watching"><div class="section-head"><h3>ดูต่อจากที่ค้างไว้</h3><span class="section-note">ทั้งหมด ›</span></div><div class="covers" id="continue" data-zone="continue">
+<button class="cover" data-zone="continue" data-title="ข้ามฟ้าสู่ดาว" data-shade="default" data-subtitle="ซีรีส์ไซไฟ · EP 03"><span class="cardtag">CONTINUE · 43%</span><strong>ข้ามฟ้าสู่ดาว</strong><small>ซีซัน 1 · ตอนที่ 3</small></button>
+<button class="cover amber" data-zone="continue" data-title="บทเพลงของฤดูร้อน" data-shade="amber" data-subtitle="ดราม่า · EP 05"><span class="cardtag">CONTINUE · 72%</span><strong>บทเพลงของฤดูร้อน</strong><small>ซีซัน 1 · ตอนที่ 5</small></button>
+<button class="cover violet" data-zone="continue" data-title="คืนที่ดาวตก" data-shade="violet" data-subtitle="แฟนตาซี · EP 02"><span class="cardtag">CONTINUE · 29%</span><strong>คืนที่ดาวตก</strong><small>ซีซัน 2 · ตอนที่ 2</small></button>
+<button class="cover teal" data-zone="continue" data-title="ทะเลแห่งความลับ" data-shade="ocean" data-subtitle="สารคดี · EP 01"><span class="cardtag">CONTINUE · 61%</span><strong>ทะเลแห่งความลับ</strong><small>ซีซัน 1 · ตอนที่ 1</small></button>
+</div></section>
+<section class="section content-section" aria-label="Recommendations"><div class="section-head"><h3>ภาพยนตร์และซีรีส์แนะนำ</h3><span class="section-note">แนะนำสำหรับคุณ ›</span></div><div class="covers" id="featured" data-zone="featured">
+<button class="cover violet" data-zone="featured" data-title="คืนที่ดาวตก" data-shade="violet" data-subtitle="แฟนตาซี · 2026"><span class="cardtag">FEATURED</span><strong>คืนที่ดาวตก</strong><small>แฟนตาซี · 2026</small></button>
+<button class="cover teal" data-zone="featured" data-title="ทะเลแห่งความลับ" data-shade="ocean" data-subtitle="สารคดี · 2026"><span class="cardtag">ORIGINAL</span><strong>ทะเลแห่งความลับ</strong><small>สารคดี · 2026</small></button>
+<button class="cover amber" data-zone="featured" data-title="บทเพลงของฤดูร้อน" data-shade="amber" data-subtitle="ดราม่า · 2026"><span class="cardtag">NEW</span><strong>บทเพลงของฤดูร้อน</strong><small>ดราม่า · 2026</small></button>
+</div></section>
+<section class="section content-section episode" aria-label="Episodes"><div class="section-head"><h3>ตอนต่าง ๆ · ข้ามฟ้าสู่ดาว</h3><span class="section-note">ซีซัน 1 ▾</span></div><div class="covers" id="episodes" data-zone="episodes">
+<button class="cover teal" data-zone="episodes" data-title="EP 01 · จุดเริ่มต้น" data-subtitle="42 นาที" data-shade="ocean"><span class="cardtag">EPISODE 01</span><strong>จุดเริ่มต้น</strong><small>42 นาที</small></button>
+<button class="cover violet" data-zone="episodes" data-title="EP 02 · ประตูแห่งเวลา" data-subtitle="48 นาที" data-shade="violet"><span class="cardtag">EPISODE 02</span><strong>ประตูแห่งเวลา</strong><small>48 นาที</small></button>
+<button class="cover" data-zone="episodes" data-title="EP 03 · สัญญาณสุดท้าย" data-subtitle="45 นาที" data-shade="default"><span class="cardtag">EPISODE 03</span><strong>สัญญาณสุดท้าย</strong><small>45 นาที</small></button>
+<button class="cover amber" data-zone="episodes" data-title="EP 04 · แสงขอบฟ้า" data-subtitle="44 นาที" data-shade="amber"><span class="cardtag">EPISODE 04</span><strong>แสงขอบฟ้า</strong><small>44 นาที</small></button>
+</div></section>
+<div class="safe-note">DEMO CONTENT · ภาพและชื่อเรื่องสมมติ · ไม่เชื่อมต่อ Netflix หรือบริการสตรีมมิงจริง</div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="overlay" id="overlay" role="dialog" aria-modal="true"><div class="dialog"><h2 id="dialog-title">ตัวอย่าง</h2><p id="dialog-desc">นี่คือ UI Preview ที่ไม่เปิดแอปจริง</p><button id="close">ปิด · Back</button></div></div>
+</section>
+<div class="controls"><div class="panel"><h4>รีโมตจำลอง</h4><button data-remote="ArrowLeft">◀</button><button data-remote="ArrowUp">▲</button><button data-remote="Enter">OK</button><button data-remote="ArrowDown">▼</button><button data-remote="ArrowRight">▶</button><button data-remote="Escape">Back</button><p class="help">ใช้ลูกศรหรือรีโมตจำลอง กด OK เพื่อดูรายละเอียด</p></div><div class="panel"><h4>จัดเรียงแอป</h4><button id="move-now">เริ่มจัดแอปที่เลือก</button><button id="restore-order">คืนลำดับตั้งต้น</button><p class="help">กดค้าง OK หรือแตะการ์ดแอป 2 วินาที → ◀ ▶ ย้าย → OK บันทึก / Back ยกเลิก</p></div></div>
+</main>
+<script>
+(function(){
+'use strict';
+const tv=document.getElementById('tv'),view=document.getElementById('view'),apps=document.getElementById('apps'),hero=document.getElementById('hero'),overlay=document.getElementById('overlay'),toast=document.getElementById('toast');
+const zones=['utils','apps','continue','featured','episodes'];
+const defaultIds=['youtube','netflix','browser','prime','disney','settings'];
+const sceneDefault={title:'ข้ามฟ้าสู่ดาว',shade:'default',subtitle:'ซีรีส์ไซไฟ · EP 03'};
+let active=document.querySelector('.app'),moveMode=false,snapshot=[],timer=null,holdStarted=0,toastTimer=null,holdFired=false,suppressEnterKeyup=false;
+function children(zone){return Array.from(document.querySelectorAll('[data-zone="'+zone+'"]')).filter(e=>e.matches('button'));}
+function zone(el){return el?el.dataset.zone:'apps';}
+function focus(el){if(!el)return;if(active)active.classList.remove('is-focused');active=el;active.classList.add('is-focused');if(el.closest('.view')){el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});}if(el.classList.contains('cover'))showScene(el.dataset.title,el.dataset.shade,el.dataset.subtitle);if(el.dataset.zone==='apps'){if(!moveMode)document.getElementById('move-help').textContent='กดค้าง OK 2 วินาทีเพื่อจัดลำดับ';}}
+function say(message){toast.textContent=message;toast.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('on'),2400);}
+function showScene(title,shade,subtitle){hero.className='hero shade-'+(shade||'default');document.getElementById('hero-title').textContent=title;document.getElementById('hero-tag').textContent='ENTERTAINMENT · FEATURED';document.getElementById('hero-meta').textContent=subtitle||'ซีรีส์ · 2026';document.getElementById('hero-summary').textContent='ตัวอย่างภาพยนตร์หรือซีรีส์สมมติเพื่อทดลองเลื่อนหน้าจอและดูการเปลี่ยน Hero Banner';}
+function openDetails(name){document.getElementById('dialog-title').textContent=name;document.getElementById('dialog-desc').textContent='โหมด Preview เท่านั้น ยังไม่เปิดแอปหรือสตรีมวิดีโอจริง';overlay.classList.add('open');document.getElementById('close').focus();}
+function closeDetails(){overlay.classList.remove('open');tv.focus({preventScroll:true});}
+function loadOrder(){try{const item=JSON.parse(localStorage.getItem('cleanyourtv-v1-app-order')||'null');if(Array.isArray(item)&&item.length===defaultIds.length&&new Set(item).size===defaultIds.length&&defaultIds.every(x=>item.includes(x))){item.forEach(id=>{const node=apps.querySelector('[data-id="'+id+'"]');if(node)apps.append(node);});}}catch(e){}}
+function saveOrder(){try{localStorage.setItem('cleanyourtv-v1-app-order',JSON.stringify(children('apps').map(e=>e.dataset.id)));}catch(e){}}
+function reorderStart(){if(zone(active)!=='apps'){say('เลือกแอปก่อนจัดลำดับ');return;}if(moveMode)return;moveMode=true;snapshot=children('apps').map(e=>e.dataset.id);active.classList.add('is-moving');document.getElementById('move-help').textContent='◀ ▶ ย้าย | OK บันทึก | Back ยกเลิก';say('โหมดจัดแอป: ใช้ ◀ ▶ เพื่อย้ายตำแหน่ง');}
+function reorderStep(dir){const list=children('apps'),index=list.indexOf(active),target=index+dir;if(target<0||target>=list.length)return;if(dir===-1){apps.insertBefore(active,list[target]);}else{apps.insertBefore(list[target],active);}focus(active);}
+function reorderEnd(save){if(!moveMode)return;moveMode=false;active.classList.remove('is-moving');if(!save){snapshot.forEach(id=>{const item=apps.querySelector('[data-id="'+id+'"]');apps.append(item);});say('ยกเลิกการจัดลำดับ');}else{saveOrder();say('บันทึกลำดับแอปแล้ว');}document.getElementById('move-help').textContent='กดค้าง OK 2 วินาทีเพื่อจัดลำดับ';}
+function navigate(key){
+ if(overlay.classList.contains('open')){if(key==='Escape'||key==='Enter')closeDetails();return;}
+ if(moveMode){if(key==='ArrowLeft')reorderStep(-1);else if(key==='ArrowRight')reorderStep(1);else if(key==='Enter')reorderEnd(true);else if(key==='Escape')reorderEnd(false);return;}
+ if(key==='Escape'){focus(children('apps')[0]);view.scrollTo({top:0,behavior:'smooth'});return;}
+ if(key==='Enter'){if(active.dataset.zone==='utils'){openDetails(active.dataset.id==='inputs'?'HDMI / Inputs':'เครื่องมือ');}else if(active.dataset.zone==='apps'){openDetails(active.querySelector('.appname').textContent);}else{openDetails(active.dataset.title);}return;}
+ const dir=(key==='ArrowRight'||key==='ArrowDown')?1:-1;
+ if(key==='ArrowLeft'||key==='ArrowRight'){let list=children(zone(active));let i=list.indexOf(active);focus(list[Math.max(0,Math.min(list.length-1,i+dir))]);}
+ if(key==='ArrowUp'||key==='ArrowDown'){let row=zones.indexOf(zone(active)),target=zones[Math.max(0,Math.min(zones.length-1,row+dir))];const old=children(zone(active)),index=old.indexOf(active);const next=children(target);focus(next[Math.min(next.length-1,Math.round(index*(next.length-1)/Math.max(1,old.length-1)))]);}
+}
+function beginHold(){clearTimeout(timer);holdStarted=Date.now();holdFired=false;if(zone(active)!=='apps'||moveMode||overlay.classList.contains('open'))return;timer=setTimeout(()=>{holdFired=true;reorderStart();},2000);}
+function endHold(){clearTimeout(timer);const fired=holdFired;holdFired=false;holdStarted=0;return fired;}
+document.addEventListener('keydown',event=>{
+ const key=event.key===' ' ? 'Enter':event.key;
+ if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Escape','Backspace'].includes(key))return;
+ event.preventDefault();
+ if(overlay.classList.contains('open')){if(key==='Escape'||key==='Backspace'||key==='Enter')closeDetails();if(key==='Enter')suppressEnterKeyup=true;return;}
+ if(key==='Enter'){
+  if(event.repeat)return;
+  if(moveMode){suppressEnterKeyup=true;navigate('Enter');return;}
+  beginHold();
+  return;
+ }
+ navigate(key==='Backspace'?'Escape':key);
+});
+document.addEventListener('keyup',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const fired=endHold();if(suppressEnterKeyup){suppressEnterKeyup=false;return;}if(!fired&&!moveMode&&!overlay.classList.contains('open'))navigate('Enter');});
+document.querySelectorAll('[data-remote]').forEach(button=>{button.addEventListener('click',()=>{if(button.dataset.remote==='Enter'){navigate('Enter');}else navigate(button.dataset.remote);tv.focus({preventScroll:true});});});
+document.querySelectorAll('button[data-zone]').forEach(button=>{
+ button.addEventListener('pointerdown',()=>{if(button.dataset.zone==='apps'){focus(button);beginHold();}});
+ button.addEventListener('pointerup',()=>{endHold();});
+ button.addEventListener('pointercancel',()=>{endHold();});
+ button.addEventListener('contextmenu',event=>event.preventDefault());
+ button.addEventListener('click',()=>{if(holdFired||moveMode)return;focus(button);navigate('Enter');});
+});
+document.querySelectorAll('.hero-actions button').forEach(b=>b.addEventListener('click',()=>openDetails(b.dataset.action==='play'?'เล่นต่อ':'รายละเอียดซีรีส์')));
+document.getElementById('move-now').addEventListener('click',()=>{if(zone(active)!=='apps')focus(children('apps')[0]);reorderStart();tv.focus({preventScroll:true});});
+document.getElementById('restore-order').addEventListener('click',()=>{if(moveMode)reorderEnd(false);defaultIds.forEach(id=>apps.append(apps.querySelector('[data-id="'+id+'"]')));saveOrder();focus(children('apps')[0]);say('คืนลำดับแอปตั้งต้นแล้ว');});
+document.getElementById('close').addEventListener('click',closeDetails);
+loadOrder();focus(apps.querySelector('[data-id="youtube"]'));
+})();
+</script>
+</body></html>
