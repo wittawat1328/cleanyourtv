@@ -1,0 +1,381 @@
+package com.wittawat.cleanyourtv.preview;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
+import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Native UI proof. Independent APK, never declares HOME, never writes device settings or disables packages.
+ * No streaming API is used; artwork and episodes are fictional placeholders.
+ */
+public final class NativePreviewActivity extends Activity {
+    private static final int BLACK = 0xFF07090F;
+    private static final int WHITE = 0xFFF6F8FC;
+    private static final int MUTED = 0xFFB6BDCC;
+    private static final int HOLD_MS = 2000;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Map<String, TextView> appCards = new LinkedHashMap<>();
+    private final String[] appNames = {"YouTube", "Netflix", "Browser", "Prime Video", "Disney+", "Settings"};
+    private final String[] appSymbols = {"▶", "N", "◎", "prime", "Disney+", "⚙"};
+    private final String[] appPackages = {
+            "com.google.android.youtube.tv", "com.netflix.ninja", "",
+            "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus", ""
+    };
+    private final int[] appColors = {0xFF9C1023, 0xFF14151B, 0xFF194A76, 0xFF135B91, 0xFF20356E, 0xFF3A4150};
+    private ArrayList<String> appOrder;
+    private LinearLayout appStrip;
+    private HorizontalScrollView appScroll;
+    private TextView instructions, heroTitle, heroGenre, heroSummary;
+    private HeroArt heroArt;
+    private boolean moving, held;
+    private String selectedId;
+    private ArrayList<String> previousOrder;
+    private Runnable holdTask;
+
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        appOrder = AppOrder.fromSaved(getPreferences(MODE_PRIVATE).getString("app_order", null));
+        render();
+    }
+
+    private int dp(float value) { return Math.round(getResources().getDisplayMetrics().density * value); }
+    private int indexOf(String id) { return AppOrder.DEFAULT.indexOf(id); }
+
+    private GradientDrawable rounded(int color, int stroke, int radius) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(radius));
+        if (stroke != 0) d.setStroke(dp(2), stroke);
+        return d;
+    }
+
+    private TextView text(String label, float sp, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(label);
+        view.setTextSize(sp);
+        view.setTextColor(color);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        if (bold) view.setTypeface(null, 1);
+        return view;
+    }
+
+    private void render() {
+        FrameLayout background = new FrameLayout(this);
+        background.setBackgroundColor(BLACK);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(38), dp(22), dp(38), dp(35));
+        scroll.addView(body);
+        background.addView(scroll);
+
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+        TextView brand = text("◈  CLEAN YOUR TV     /     HOME", 18, WHITE, true);
+        toolbar.addView(brand, new LinearLayout.LayoutParams(0, dp(50), 1));
+        toolbar.addView(toolbarButton("▣", "HDMI / Inputs", () -> new AlertDialog.Builder(this)
+                .setTitle("HDMI / Inputs")
+                .setMessage("Native Preview: ยังไม่สั่งสลับพอร์ตบนเครื่องจริง เมื่อทดสอบพอร์ต Hisense แล้วจึงจะเปิดใช้งาน")
+                .setPositiveButton("ปิด", null).show()));
+        toolbar.addView(toolbarButton("⌕", "Search", () -> information("ค้นหา", "กำลังเตรียมระบบค้นหาในเวอร์ชัน Native ถัดไป")));
+        toolbar.addView(toolbarButton("⚙", "Settings", () -> {
+            try { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+            catch (ActivityNotFoundException | SecurityException e) { information("Settings", "ไม่พบเมนูตั้งค่าบน Emulator นี้"); }
+        }));
+        TextView preview = text("ANDROID 11 · SAFE PREVIEW", 11, MUTED, false);
+        preview.setPadding(dp(15), 0, 0, 0);
+        toolbar.addView(preview);
+        body.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(50)));
+
+        FrameLayout hero = new FrameLayout(this);
+        heroArt = new HeroArt();
+        hero.addView(heroArt, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout heroLabels = new LinearLayout(this);
+        heroLabels.setPadding(dp(32), dp(26), dp(32), dp(26));
+        heroLabels.setOrientation(LinearLayout.VERTICAL);
+        heroLabels.setGravity(Gravity.BOTTOM);
+        TextView eyebrow = text("EXCLUSIVE     ·     CONTINUE WATCHING", 12, 0xFFDDE4F0, true);
+        heroLabels.addView(eyebrow);
+        heroTitle = text("ข้ามฟ้าสู่ดาว", 44, WHITE, true);
+        heroLabels.addView(heroTitle);
+        heroGenre = text("ซีรีส์ไซไฟ    ·    2026    ·    4K UHD    ·    EP 03", 14, 0xFFD8DCE6, false);
+        heroLabels.addView(heroGenre);
+        heroSummary = text("ภาพยนตร์และรายการสมมติสำหรับทดสอบระบบเลื่อนด้วยรีโมตบน Android TV", 13, MUTED, false);
+        heroLabels.addView(heroSummary);
+        hero.addView(heroLabels, new FrameLayout.LayoutParams(-1, -1));
+        body.addView(hero, new LinearLayout.LayoutParams(-1, dp(320)));
+
+        LinearLayout appTitle = sectionTitle("แอปของคุณ", "กดค้าง OK 2 วินาทีเพื่อจัดลำดับ");
+        instructions = (TextView) appTitle.getChildAt(1);
+        body.addView(appTitle);
+        appScroll = new HorizontalScrollView(this);
+        appScroll.setHorizontalScrollBarEnabled(false);
+        appScroll.setClipToPadding(false);
+        appStrip = new LinearLayout(this);
+        appStrip.setPadding(dp(12), dp(14), dp(12), dp(14));
+        appStrip.setOrientation(LinearLayout.HORIZONTAL);
+        appScroll.addView(appStrip);
+        body.addView(appScroll, new LinearLayout.LayoutParams(-1, dp(127)));
+        buildAppCards(null);
+
+        addContentRow(body, "ดูต่อจากที่ค้างไว้", new String[]{"ข้ามฟ้าสู่ดาว", "บทเพลงของฤดูร้อน", "คืนที่ดาวตก", "ทะเลแห่งความลับ"}, "CONTINUE", 0);
+        addContentRow(body, "ภาพยนตร์และซีรีส์แนะนำ", new String[]{"คืนที่ดาวตก", "ทะเลแห่งความลับ", "บทเพลงของฤดูร้อน"}, "FEATURED", 1);
+        addContentRow(body, "ตอนต่าง ๆ · ข้ามฟ้าสู่ดาว", new String[]{"EP 01 · จุดเริ่มต้น", "EP 02 · ประตูแห่งเวลา", "EP 03 · สัญญาณสุดท้าย", "EP 04 · แสงขอบฟ้า"}, "EPISODE", 2);
+
+        TextView legal = text("DEMO CONTENT · ชื่อเรื่องและภาพเป็นข้อมูลสมมติ · ไม่มีการดึงรายการจาก Netflix/Prime/Disney+", 11, 0xFF8994A9, false);
+        legal.setGravity(Gravity.CENTER);
+        legal.setPadding(0, dp(15), 0, dp(15));
+        body.addView(legal);
+        setContentView(background);
+        handler.post(() -> { TextView first = appCards.get(appOrder.get(0)); if (first != null) first.requestFocus(); });
+    }
+
+    private TextView toolbarButton(String symbol, String label, Runnable action) {
+        TextView button = text(symbol, 24, WHITE, true);
+        button.setGravity(Gravity.CENTER);
+        button.setContentDescription(label);
+        button.setFocusable(true);
+        button.setClickable(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        lp.setMargins(dp(4), 0, dp(4), 0);
+        button.setLayoutParams(lp);
+        button.setBackground(rounded(0xFF252A36, 0, 20));
+        button.setOnClickListener(v -> action.run());
+        button.setOnFocusChangeListener((v, focused) -> styleFocus(button, 0xFF252A36, focused));
+        return button;
+    }
+
+    private LinearLayout sectionTitle(String title, String caption) {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(4), dp(8), dp(4), dp(4));
+        TextView heading = text(title, 20, WHITE, true);
+        bar.addView(heading, new LinearLayout.LayoutParams(0, dp(38), 1));
+        TextView hint = text(caption, 12, MUTED, false);
+        bar.addView(hint);
+        return bar;
+    }
+
+    private void buildAppCards(String focusId) {
+        appStrip.removeAllViews();
+        appCards.clear();
+        for (String id : appOrder) {
+            int idx=indexOf(id);
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            column.setGravity(Gravity.CENTER);
+            TextView card = text(appSymbols[idx] + "\n" + appNames[idx], idx==3||idx==4?15:19, WHITE, true);
+            card.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            card.setGravity(Gravity.CENTER);
+            card.setFocusable(true);
+            card.setClickable(true);
+            card.setTag(id);
+            card.setBackground(rounded(appColors[idx], 0, 12));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(160), dp(91));
+            p.setMargins(dp(6), dp(3), dp(6), dp(3));
+            appStrip.addView(card, p);
+            appCards.put(id,card);
+            card.setOnFocusChangeListener((v,focused)->{
+                if(!focused) cancelHold();
+                styleFocus(card, appColors[idx], focused);
+            });
+            card.setOnClickListener(v -> {
+                if(moving) finishMove(true);
+                else launchApp(id);
+            });
+            card.setOnKeyListener((v,key,event)-> handleAppKey(id,key,event));
+        }
+        if(focusId!=null) {
+            TextView card=appCards.get(focusId);
+            if(card!=null) handler.post(card::requestFocus);
+        }
+    }
+
+    private boolean handleAppKey(String id,int key,KeyEvent event) {
+        boolean ok=key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER||key==KeyEvent.KEYCODE_NUMPAD_ENTER;
+        boolean back=key==KeyEvent.KEYCODE_BACK||key==KeyEvent.KEYCODE_ESCAPE;
+        if(moving){
+            if(key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT){
+                if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0) {
+                    AppOrder.moveOne(appOrder,selectedId,key==KeyEvent.KEYCODE_DPAD_LEFT?-1:1);
+                    buildAppCards(selectedId);
+                }
+                return true;
+            }
+            if(back||ok) {
+                if(event.getAction()==KeyEvent.ACTION_UP) finishMove(ok);
+                return true;
+            }
+            return true;
+        }
+        if(!ok)return false;
+        if(event.getAction()==KeyEvent.ACTION_DOWN){
+            if(event.getRepeatCount()==0){
+                held=false;
+                cancelHold();
+                holdTask=()->{held=true;startMove(id);};
+                handler.postDelayed(holdTask,HOLD_MS);
+            }
+            return true;
+        }
+        if(event.getAction()==KeyEvent.ACTION_UP){
+            cancelHold();
+            if(!held&&!event.isCanceled())launchApp(id);
+            held=false;
+            return true;
+        }
+        return true;
+    }
+
+    private void cancelHold(){if(holdTask!=null){handler.removeCallbacks(holdTask);holdTask=null;}}
+    private void startMove(String id){
+        moving=true;selectedId=id;previousOrder=new ArrayList<>(appOrder);
+        instructions.setText("◀ ▶ ย้ายแอป    ·    OK บันทึก    ·    Back ยกเลิก");
+        TextView card=appCards.get(id);
+        if(card!=null)card.setBackground(rounded(appColors[indexOf(id)],0xFF78D4FF,12));
+    }
+    private void finishMove(boolean save){
+        if(!moving)return;
+        String id=selectedId;
+        moving=false;selectedId=null;
+        if(save){
+            getPreferences(MODE_PRIVATE).edit().putString("app_order",AppOrder.serialize(appOrder)).apply();
+        } else {
+            appOrder=previousOrder;
+        }
+        instructions.setText("กดค้าง OK 2 วินาทีเพื่อจัดลำดับ");
+        buildAppCards(id);
+    }
+
+    private void styleFocus(TextView view,int color,boolean focus) {
+        view.setBackground(rounded(color, focus ? WHITE : 0, 12));
+        view.animate().scaleX(focus?1.045f:1f).scaleY(focus?1.045f:1f)
+                .setDuration(focus?165:120).start();
+        view.setTranslationZ(focus?dp(10):0);
+    }
+
+    private void addContentRow(LinearLayout body,String heading,String[] names,String tag,int rowIndex){
+        body.addView(sectionTitle(heading,"ทั้งหมด   ›"));
+        HorizontalScrollView horizontal=new HorizontalScrollView(this);
+        horizontal.setHorizontalScrollBarEnabled(false);
+        LinearLayout cards=new LinearLayout(this);
+        cards.setPadding(dp(12),dp(10),dp(12),dp(15));
+        cards.setOrientation(LinearLayout.HORIZONTAL);
+        for(int i=0;i<names.length;i++){
+            final String title=names[i];
+            final int palette=(rowIndex*2+i)%4;
+            int[] colors={0xFF263D56,0xFF684435,0xFF333264,0xFF17565D};
+            TextView cover=text(tag+"    ·    DEMO\n\n"+title+"\n"+(rowIndex==2?"45 นาที":"2026  ·  4K"),16,WHITE,true);
+            cover.setGravity(Gravity.BOTTOM|Gravity.START);
+            cover.setPadding(dp(16),dp(12),dp(16),dp(16));
+            cover.setFocusable(true);cover.setClickable(true);
+            cover.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                    new int[]{colors[palette],0xFF141922}));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(230),dp(137));
+            lp.setMargins(dp(6),dp(4),dp(6),dp(4));
+            cards.addView(cover,lp);
+            cover.setOnFocusChangeListener((v,focused)->{
+                styleFocus(cover,colors[palette],focused);
+                if(focused){
+                    heroTitle.setText(title);
+                    heroGenre.setText(rowIndex==2?"ตอนจากซีรีส์ · 45 นาที":"DEMO · ภาพยนตร์และซีรีส์");
+                    heroArt.setPalette(palette);
+                }
+            });
+            cover.setOnClickListener(v->information(title,"รายการตัวอย่างเพื่อทดสอบ Navigation และ Episode เท่านั้น ไม่ได้เชื่อมต่อแอปสตรีมมิง"));
+        }
+        horizontal.addView(cards);
+        body.addView(horizontal,new LinearLayout.LayoutParams(-1,dp(168)));
+    }
+
+    private void launchApp(String id){
+        if("browser".equals(id)){
+            information("Browser", "ยังไม่ระบุแอป Browser จริงของ Hisense โปรดเลือก Package ก่อนเปิดใช้งาน เพื่อไม่เปิดผิดแอป");
+            return;
+        }
+        if("settings".equals(id)){
+            try{startActivity(new Intent(Settings.ACTION_SETTINGS));}
+            catch(ActivityNotFoundException|SecurityException e){information("Settings","ไม่พบหน้าตั้งค่าบนอุปกรณ์นี้");}
+            return;
+        }
+        int idx=indexOf(id);
+        Intent launch=null;
+        try{
+            if(idx>=0&&!appPackages[idx].isEmpty()){
+                launch=getPackageManager().getLeanbackLaunchIntentForPackage(appPackages[idx]);
+                if(launch==null)launch=getPackageManager().getLaunchIntentForPackage(appPackages[idx]);
+            }
+            if(launch!=null){startActivity(launch);return;}
+        }catch(ActivityNotFoundException|SecurityException ignored){}
+        information(appNames[idx], "ไม่พบแอปที่ติดตั้งหรือไม่อนุญาตให้เปิดจากอุปกรณ์นี้");
+    }
+
+    private void information(String title,String message){
+        new AlertDialog.Builder(this).setTitle(title).setMessage(message)
+                .setPositiveButton("ตกลง",null).show();
+    }
+    @Override public void onBackPressed(){
+        if(moving){finishMove(false);return;}
+        super.onBackPressed(); // Return to original stock HOME. Never intercept HOME globally.
+    }
+    @Override protected void onDestroy(){cancelHold();handler.removeCallbacksAndMessages(null);super.onDestroy();}
+
+    private final class HeroArt extends View {
+        private int palette;
+        private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+        HeroArt(){super(NativePreviewActivity.this);}
+        void setPalette(int index){palette=index;invalidate();}
+        @Override protected void onDraw(Canvas canvas){
+            int w=getWidth(),h=getHeight();
+            int[][] colors={{0xFF0F182D,0xFF334A62},{0xFF1B151D,0xFF774D39},
+                    {0xFF0C1533,0xFF54406B},{0xFF092F38,0xFF237481}};
+            int[] cs=colors[palette%4];
+            paint.setShader(new LinearGradient(0,0,w,h,cs[0],cs[1],Shader.TileMode.CLAMP));
+            canvas.drawRect(0,0,w,h,paint);paint.setShader(null);
+            paint.setShader(new RadialGradient(w*.75f,h*.36f,h*.45f,
+                    new int[]{0x99D2DCEA,0x444B789B,0x00202030},null,Shader.TileMode.CLAMP));
+            canvas.drawCircle(w*.75f,h*.36f,h*.45f,paint);paint.setShader(null);
+            Path mountain=new Path();mountain.moveTo(w*.40f,h);
+            mountain.lineTo(w*.52f,h*.61f);mountain.lineTo(w*.59f,h*.80f);
+            mountain.lineTo(w*.68f,h*.42f);mountain.lineTo(w*.81f,h*.85f);
+            mountain.lineTo(w*.92f,h*.57f);mountain.lineTo(w,h*.76f);mountain.lineTo(w,h);mountain.close();
+            paint.setColor(0xDD0A1421);canvas.drawPath(mountain,paint);
+            paint.setShader(new LinearGradient(0,0,w,0,
+                    new int[]{0xFF07090F,0xE707090F,0x0007090F},
+                    new float[]{0f,.28f,.82f},Shader.TileMode.CLAMP));
+            canvas.drawRect(0,0,w,h,paint);paint.setShader(null);
+        }
+    }
+}
