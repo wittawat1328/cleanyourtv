@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -84,7 +85,7 @@ public final class NativePreviewActivity extends Activity {
         view.setTextSize(sp);
         view.setTextColor(color);
         view.setGravity(Gravity.CENTER_VERTICAL);
-        if (bold) view.setTypeface(null, 1);
+        if (bold) view.setTypeface(null, Typeface.BOLD);
         return view;
     }
 
