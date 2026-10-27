@@ -18,7 +18,8 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.NoActionBar"
-        android:icon="@android:drawable/ic_menu_view">
+        android:icon="@android:drawable/ic_menu_view"
+        android:banner="@drawable/banner_native">
         <!-- Intentionally no HOME/DEFAULT intent and NO services, providers or receivers.
              Opening this activity cannot become the device's HOME application. -->
         <activity

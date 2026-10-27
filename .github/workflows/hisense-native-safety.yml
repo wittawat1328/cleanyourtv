@@ -34,6 +34,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :entertainment-preview:testDebugUnitTest :entertainment-preview:lintDebug :entertainment-preview:assembleDebug :app:assembleDebug
+      - name: Print all Android Lint findings
+        if: always()
+        run: |
+          if [ -f launcher/entertainment-preview/build/reports/lint-results-debug.txt ]; then
+            cat launcher/entertainment-preview/build/reports/lint-results-debug.txt
+          fi
       - name: Enforce native preview APK permissions and manifest safety
         run: |
           set -euo pipefail
@@ -72,5 +78,6 @@ jobs:
           path: |
             launcher/entertainment-preview/build/outputs/apk/debug/entertainment-preview-debug.apk
             artifacts/hisense-native/
+            launcher/entertainment-preview/build/reports/lint-results-debug.txt
           retention-days: 14
           if-no-files-found: warn
