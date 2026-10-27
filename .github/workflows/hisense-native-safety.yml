@@ -33,7 +33,7 @@ jobs:
         working-directory: launcher
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :entertainment-preview:testDebugUnitTest :entertainment-preview:lintDebug :entertainment-preview:assembleDebug :app:assembleDebug
+          ./gradlew --no-daemon -PincludeNativePreview=true :entertainment-preview:testDebugUnitTest :entertainment-preview:lintDebug :entertainment-preview:assembleDebug :app:assembleDebug
       - name: Print all Android Lint findings
         if: always()
         run: |
