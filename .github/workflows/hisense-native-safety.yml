@@ -1,0 +1,76 @@
+name: Hisense Native Android 11 Safety
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/hisense-native-safe-preview'
+    paths:
+      - 'launcher/**'
+      - 'scripts/ci/hisense-native-smoke.sh'
+      - '.github/workflows/hisense-native-safety.yml'
+  pull_request:
+    paths:
+      - 'launcher/**'
+      - 'scripts/ci/hisense-native-smoke.sh'
+      - '.github/workflows/hisense-native-safety.yml'
+permissions:
+  contents: read
+jobs:
+  native-android11:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build, lint, unit tests, baseline compatibility
+        working-directory: launcher
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :entertainment-preview:testDebugUnitTest :entertainment-preview:lintDebug :entertainment-preview:assembleDebug :app:assembleDebug
+      - name: Enforce native preview APK permissions and manifest safety
+        run: |
+          set -euo pipefail
+          APK=launcher/entertainment-preview/build/outputs/apk/debug/entertainment-preview-debug.apk
+          AAPT="$ANDROID_HOME/build-tools/34.0.0/aapt"
+          mkdir -p artifacts/hisense-native
+          "$AAPT" dump badging "$APK" > artifacts/hisense-native/badging.txt
+          "$AAPT" dump permissions "$APK" > artifacts/hisense-native/permissions.txt
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml > artifacts/hisense-native/manifest-tree.txt
+          grep -q "package: name='com.wittawat.cleanyourtv.preview'" artifacts/hisense-native/badging.txt
+          if grep -Eq 'android.intent.category.HOME|WRITE_SECURE_SETTINGS|BIND_ACCESSIBILITY_SERVICE|uses-permission|android.permission.ACCESS_FINE_LOCATION' artifacts/hisense-native/manifest-tree.txt; then
+            echo "Unsafe manifest component or permission" >&2; exit 1
+          fi
+          echo 'PASS: separate app ID, no HOME role, no privileged permissions'
+      - name: Enable KVM in virtual runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android TV 11 virtual device + no-system-change proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          ram-size: 2048M
+          emulator-boot-timeout: 900
+          emulator-options: '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim'
+          script: bash scripts/ci/hisense-native-smoke.sh
+      - name: Upload native APK and audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hisense-native-android11-safety
+          path: |
+            launcher/entertainment-preview/build/outputs/apk/debug/entertainment-preview-debug.apk
+            artifacts/hisense-native/
+          retention-days: 14
+          if-no-files-found: warn
