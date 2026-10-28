@@ -64,7 +64,8 @@ public final class NativePreviewActivity extends Activity {
     private final Runnable updateApps = () -> refreshApps();
 
 
-        private LinearLayout appStrip;
+        private ArrayList<String> appOrder;
+    private LinearLayout appStrip;
     private HorizontalScrollView appScroll;
     private TextView instructions, heroTitle, heroGenre, heroSummary;
     private HeroArt heroArt;
