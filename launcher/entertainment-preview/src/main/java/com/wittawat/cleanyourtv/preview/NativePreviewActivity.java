@@ -358,7 +358,7 @@ public final class NativePreviewActivity extends Activity {
         buildAppCards(id);
     }
 
-    private void styleFocus(TextView view,int color,boolean focus) {
+    private void styleFocus(View view,int color,boolean focus) {
         view.setBackground(rounded(color, focus ? WHITE : 0, 12));
         view.animate().scaleX(focus?1.045f:1f).scaleY(focus?1.045f:1f)
                 .setDuration(focus?165:120).start();
