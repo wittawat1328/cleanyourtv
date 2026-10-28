@@ -3,6 +3,10 @@ package com.wittawat.cleanyourtv.preview;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -13,6 +17,7 @@ import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,7 +28,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -31,6 +38,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -44,14 +52,19 @@ public final class NativePreviewActivity extends Activity {
     private static final int HOLD_MS = 2000;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, TextView> appCards = new LinkedHashMap<>();
-    private final String[] appNames = {"YouTube", "Netflix", "Browser", "Prime Video", "Disney+", "Settings"};
-    private final String[] appSymbols = {"▶", "N", "◎", "prime", "Disney+", "⚙"};
-    private final String[] appPackages = {
-            "com.google.android.youtube.tv", "com.netflix.ninja", "",
-            "com.amazon.amazonvideo.livingroom", "com.disney.disneyplus", ""
+    private LinkedHashMap<String, InstalledApps.Item> availableApps = new LinkedHashMap<>();
+    private TextView allAppsButton;
+    private AlertDialog allAppsDialog;
+    private final BroadcastReceiver packageChanges = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            handler.removeCallbacks(updateApps);
+            handler.postDelayed(updateApps, 350);
+        }
     };
-    private final int[] appColors = {0xFF9C1023, 0xFF14151B, 0xFF194A76, 0xFF135B91, 0xFF20356E, 0xFF3A4150};
-    private ArrayList<String> appOrder;
+    private final Runnable updateApps = () -> refreshApps();
+
+
+        private ArrayList<String> appOrder;
     private LinearLayout appStrip;
     private HorizontalScrollView appScroll;
     private TextView instructions, heroTitle, heroGenre, heroSummary;
@@ -64,12 +77,52 @@ public final class NativePreviewActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        appOrder = AppOrder.fromSaved(getPreferences(MODE_PRIVATE).getString("app_order", null));
+        availableApps = InstalledApps.discover(this);
+        appOrder = initialFavorites();
         render();
+        IntentFilter changes = new IntentFilter();
+        changes.addAction(Intent.ACTION_PACKAGE_ADDED);
+        changes.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        changes.addAction(Intent.ACTION_PACKAGE_CHANGED);
+        changes.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        changes.addDataScheme("package");
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(packageChanges, changes, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(packageChanges, changes);
+        }
     }
 
     private int dp(float value) { return Math.round(getResources().getDisplayMetrics().density * value); }
-    private int indexOf(String id) { return AppOrder.DEFAULT.indexOf(id); }
+    private ArrayList<String> initialFavorites() {
+        String saved = getPreferences(MODE_PRIVATE).getString("favorite_packages_v1", null);
+        if (saved != null) return FavoritesPolicy.visibleFromSaved(saved, availableApps.keySet());
+        LinkedHashMap<String, String> labels = new LinkedHashMap<>();
+        for (InstalledApps.Item item : availableApps.values()) labels.put(item.packageName, item.label);
+        ArrayList<String> seeded = FavoritesPolicy.firstRun(labels);
+        getPreferences(MODE_PRIVATE).edit().putString("favorite_packages_v1", FavoritesPolicy.serialize(seeded)).apply();
+        return seeded;
+    }
+
+    private void saveFavorites() {
+        getPreferences(MODE_PRIVATE).edit()
+                .putString("favorite_packages_v1", FavoritesPolicy.serialize(appOrder)).apply();
+    }
+
+    private void refreshApps() {
+        if (moving) finishMove(false);
+        String currentFocus = null;
+        for (Map.Entry<String, TextView> entry : appCards.entrySet()) {
+            if (entry.getValue().isFocused()) { currentFocus = entry.getKey(); break; }
+        }
+        availableApps = InstalledApps.discover(this);
+        appOrder = initialFavorites();
+        if (appStrip != null) buildAppCards(currentFocus);
+        if (allAppsDialog != null && allAppsDialog.isShowing()) {
+            allAppsDialog.dismiss();
+            showAllApps();
+        }
+    }
 
     private GradientDrawable rounded(int color, int stroke, int radius) {
         GradientDrawable d = new GradientDrawable();
@@ -110,6 +163,8 @@ public final class NativePreviewActivity extends Activity {
                 .setTitle("HDMI / Inputs")
                 .setMessage("Native Preview: ยังไม่สั่งสลับพอร์ตบนเครื่องจริง เมื่อทดสอบพอร์ต Hisense แล้วจึงจะเปิดใช้งาน")
                 .setPositiveButton("ปิด", null).show()));
+        allAppsButton = toolbarButton("▦", "All Apps", this::showAllApps);
+        toolbar.addView(allAppsButton);
         toolbar.addView(toolbarButton("⌕", "Search", () -> information("ค้นหา", "กำลังเตรียมระบบค้นหาในเวอร์ชัน Native ถัดไป")));
         toolbar.addView(toolbarButton("⚙", "Settings", () -> {
             try { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
@@ -160,7 +215,13 @@ public final class NativePreviewActivity extends Activity {
         legal.setPadding(0, dp(15), 0, dp(15));
         body.addView(legal);
         setContentView(background);
-        handler.post(() -> { TextView first = appCards.get(appOrder.get(0)); if (first != null) first.requestFocus(); });
+        handler.post(() -> {
+            if (!appOrder.isEmpty()) {
+                TextView first = appCards.get(appOrder.get(0));
+                if (first != null) { first.requestFocus(); return; }
+            }
+            if (allAppsButton != null) allAppsButton.requestFocus();
+        });
     }
 
     private TextView toolbarButton(String symbol, String label, Runnable action) {
@@ -192,39 +253,57 @@ public final class NativePreviewActivity extends Activity {
     private void buildAppCards(String focusId) {
         appStrip.removeAllViews();
         appCards.clear();
-        for (String id : appOrder) {
-            int idx=indexOf(id);
-            LinearLayout column = new LinearLayout(this);
-            column.setOrientation(LinearLayout.VERTICAL);
-            column.setGravity(Gravity.CENTER);
-            TextView card = text(appSymbols[idx] + "\n" + appNames[idx], idx==3||idx==4?15:19, WHITE, true);
+        if (appOrder.isEmpty()) {
+            TextView empty = text("＋ เลือกแอปโปรดจาก All Apps", 17, WHITE, true);
+            empty.setGravity(Gravity.CENTER);
+            empty.setFocusable(true);
+            empty.setBackground(rounded(0xFF283346, 0, 12));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(320), dp(92));
+            lp.setMargins(dp(6), dp(3), dp(6), dp(3));
+            appStrip.addView(empty, lp);
+            empty.setOnClickListener(v -> showAllApps());
+            empty.setOnFocusChangeListener((v, focused) -> styleFocus(empty, 0xFF283346, focused));
+            return;
+        }
+        for (String pkg : appOrder) {
+            InstalledApps.Item item = availableApps.get(pkg);
+            if (item == null) continue;
+            final int color = 0xFF213349 | (pkg.hashCode() & 0x001C1C1C);
+            TextView card = text(item.label, 14, WHITE, true);
             card.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             card.setGravity(Gravity.CENTER);
             card.setFocusable(true);
             card.setClickable(true);
-            card.setTag(id);
-            card.setBackground(rounded(appColors[idx], 0, 12));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(160), dp(91));
-            p.setMargins(dp(6), dp(3), dp(6), dp(3));
-            appStrip.addView(card, p);
-            appCards.put(id,card);
-            card.setOnFocusChangeListener((v,focused)->{
-                if(!focused) cancelHold();
-                styleFocus(card, appColors[idx], focused);
+            card.setTag(pkg);
+            card.setContentDescription(item.label);
+            card.setBackground(rounded(color, 0, 12));
+            Drawable icon = item.icon(getPackageManager());
+            if (icon != null) {
+                icon.setBounds(0, 0, dp(39), dp(39));
+                card.setCompoundDrawables(null, icon, null, null);
+                card.setCompoundDrawablePadding(dp(4));
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(160), dp(91));
+            lp.setMargins(dp(6), dp(3), dp(6), dp(3));
+            appStrip.addView(card, lp);
+            appCards.put(pkg, card);
+            card.setOnFocusChangeListener((v, focused) -> {
+                if (!focused) cancelHold();
+                styleFocus(card, color, focused);
             });
             card.setOnClickListener(v -> {
-                if(moving) finishMove(true);
-                else launchApp(id);
+                if (moving) finishMove(true);
+                else launchApp(pkg);
             });
-            card.setOnKeyListener((v,key,event)-> handleAppKey(id,key,event));
+            card.setOnKeyListener((v, key, event) -> handleAppKey(pkg, key, event));
         }
-        if(focusId!=null) {
-            TextView card=appCards.get(focusId);
-            if(card!=null) handler.post(card::requestFocus);
+        if (focusId != null) {
+            TextView desired = appCards.get(focusId);
+            if (desired != null) handler.post(desired::requestFocus);
         }
     }
 
-    private boolean handleAppKey(String id,int key,KeyEvent event) {
+        private boolean handleAppKey(String id,int key,KeyEvent event) {
         boolean ok=key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER||key==KeyEvent.KEYCODE_NUMPAD_ENTER;
         boolean back=key==KeyEvent.KEYCODE_BACK||key==KeyEvent.KEYCODE_ESCAPE;
         if(moving){
@@ -265,14 +344,14 @@ public final class NativePreviewActivity extends Activity {
         moving=true;selectedId=id;previousOrder=new ArrayList<>(appOrder);
         instructions.setText("◀ ▶ ย้ายแอป    ·    OK บันทึก    ·    Back ยกเลิก");
         TextView card=appCards.get(id);
-        if(card!=null)card.setBackground(rounded(appColors[indexOf(id)],0xFF78D4FF,12));
+        if(card!=null)card.setBackground(rounded(0xFF253950,0xFF78D4FF,12));
     }
     private void finishMove(boolean save){
         if(!moving)return;
         String id=selectedId;
         moving=false;selectedId=null;
         if(save){
-            getPreferences(MODE_PRIVATE).edit().putString("app_order",AppOrder.serialize(appOrder)).apply();
+            saveFavorites();
         } else {
             appOrder=previousOrder;
         }
@@ -280,7 +359,7 @@ public final class NativePreviewActivity extends Activity {
         buildAppCards(id);
     }
 
-    private void styleFocus(TextView view,int color,boolean focus) {
+    private void styleFocus(View view,int color,boolean focus) {
         view.setBackground(rounded(color, focus ? WHITE : 0, 12));
         view.animate().scaleX(focus?1.045f:1f).scaleY(focus?1.045f:1f)
                 .setDuration(focus?165:120).start();
@@ -321,29 +400,95 @@ public final class NativePreviewActivity extends Activity {
         body.addView(horizontal,new LinearLayout.LayoutParams(-1,dp(168)));
     }
 
-    private void launchApp(String id){
-        if("browser".equals(id)){
-            information("Browser", "ยังไม่ระบุแอป Browser จริงของ Hisense โปรดเลือก Package ก่อนเปิดใช้งาน เพื่อไม่เปิดผิดแอป");
+    private void launchApp(String pkg) {
+        InstalledApps.Item app = availableApps.get(pkg);
+        if (app == null) {
+            information("แอปไม่พร้อมใช้งาน", "ไม่พบแอปนี้ในรายการที่เปิดได้บนทีวี");
+            refreshApps();
             return;
         }
-        if("settings".equals(id)){
-            try{startActivity(new Intent(Settings.ACTION_SETTINGS));}
-            catch(ActivityNotFoundException|SecurityException e){information("Settings","ไม่พบหน้าตั้งค่าบนอุปกรณ์นี้");}
-            return;
+        try {
+            startActivity(app.launchIntent());
+        } catch (ActivityNotFoundException | SecurityException ex) {
+            information(app.label, "ไม่สามารถเปิดแอปนี้ได้ ตรวจสอบว่าแอปยังติดตั้งและเปิดใช้งานอยู่");
+            refreshApps();
         }
-        int idx=indexOf(id);
-        Intent launch=null;
-        try{
-            if(idx>=0&&!appPackages[idx].isEmpty()){
-                launch=getPackageManager().getLeanbackLaunchIntentForPackage(appPackages[idx]);
-                if(launch==null)launch=getPackageManager().getLaunchIntentForPackage(appPackages[idx]);
-            }
-            if(launch!=null){startActivity(launch);return;}
-        }catch(ActivityNotFoundException|SecurityException ignored){}
-        information(appNames[idx], "ไม่พบแอปที่ติดตั้งหรือไม่อนุญาตให้เปิดจากอุปกรณ์นี้");
     }
 
-    private void information(String title,String message){
+    private void pin(String pkg, boolean add) {
+        appOrder = add ? FavoritesPolicy.add(appOrder, pkg, availableApps.keySet())
+                : FavoritesPolicy.remove(appOrder, pkg);
+        saveFavorites();
+        buildAppCards(null);
+    }
+
+    private void showAllApps() {
+        LinkedHashMap<String, InstalledApps.Item> latest = InstalledApps.discover(this);
+        availableApps = latest;
+        appOrder = initialFavorites();
+        if (appStrip != null) buildAppCards(null);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(4);
+        grid.setPadding(dp(14), dp(12), dp(14), dp(12));
+        for (InstalledApps.Item item : latest.values()) {
+            boolean pinned = appOrder.contains(item.packageName);
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER);
+            tile.setFocusable(true);
+            tile.setClickable(true);
+            tile.setContentDescription(item.label + (pinned ? " แอปโปรด" : ""));
+            tile.setBackground(rounded(0xFF243347,0,10));
+            ImageView image = new ImageView(this);
+            image.setContentDescription(null);
+            Drawable icon = item.icon(getPackageManager());
+            if (icon != null) image.setImageDrawable(icon);
+            tile.addView(image, new LinearLayout.LayoutParams(dp(42), dp(42)));
+            TextView label = text(item.label + (pinned ? "  ★" : ""), 13, WHITE, true);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(2);
+            tile.addView(label);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+            lp.width = dp(180);
+            lp.height = dp(108);
+            lp.setMargins(dp(6), dp(6), dp(6), dp(6));
+            grid.addView(tile, lp);
+            tile.setOnFocusChangeListener((v, focused) -> styleFocus(tile, 0xFF243347, focused));
+            tile.setOnClickListener(v -> {
+                boolean isPinned = appOrder.contains(item.packageName);
+                String choice = isPinned ? "เอาออกจากแอปโปรด" : "เพิ่มในแอปโปรด";
+                new AlertDialog.Builder(this).setTitle(item.label)
+                        .setItems(new String[]{"เปิดแอป", choice}, (dialog, action) -> {
+                            if (action == 0) {
+                                if (allAppsDialog != null) allAppsDialog.dismiss();
+                                launchApp(item.packageName);
+                            } else {
+                                pin(item.packageName, !isPinned);
+                                if (allAppsDialog != null) allAppsDialog.dismiss();
+                                showAllApps();
+                            }
+                        }).show();
+            });
+        }
+        if (latest.isEmpty()) {
+            TextView empty = text("ไม่พบแอปที่เปิดได้จาก Launcher ของ Android", 16, MUTED, false);
+            empty.setPadding(dp(20), dp(20), dp(20), dp(20));
+            grid.addView(empty);
+        }
+        scroll.addView(grid);
+        allAppsDialog = new AlertDialog.Builder(this)
+                .setTitle("All Apps  ·  " + latest.size() + " แอป")
+                .setView(scroll)
+                .setNegativeButton("ปิด", (dialog, which) -> { })
+                .create();
+        allAppsDialog.setOnDismissListener(dialog -> allAppsDialog = null);
+        allAppsDialog.show();
+        allAppsDialog.getWindow().setLayout(dp(860), dp(650));
+    }
+
+        private void information(String title,String message){
         new AlertDialog.Builder(this).setTitle(title).setMessage(message)
                 .setPositiveButton("ตกลง",null).show();
     }
@@ -351,7 +496,16 @@ public final class NativePreviewActivity extends Activity {
         if(moving){finishMove(false);return;}
         super.onBackPressed(); // Return to original stock HOME. Never intercept HOME globally.
     }
-    @Override protected void onDestroy(){cancelHold();handler.removeCallbacksAndMessages(null);super.onDestroy();}
+    @Override protected void onResume() {
+        super.onResume();
+        if (appStrip != null) refreshApps();
+    }
+    @Override protected void onDestroy() {
+        cancelHold();
+        handler.removeCallbacksAndMessages(null);
+        try { unregisterReceiver(packageChanges); } catch (IllegalArgumentException ignored) { }
+        super.onDestroy();
+    }
 
     private final class HeroArt extends View {
         private int palette;
