@@ -18,6 +18,15 @@ The earlier Native Preview remains a separate application.
 - No boot receiver or accessibility service. Android manages the selected Home.
   Power, volume and vendor remote shortcuts are passed to Android.
 
+## Windows recovery without Python
+This computer already has Node.js. Use the dependency-free Node tool with the same baseline schema:
+```sh
+node scripts/phase-a-recovery.cjs backup --serial <tv-serial> --file backup/phase-a-home.json --adb "<absolute-adb-path>"
+node scripts/phase-a-recovery.cjs restore --serial <tv-serial> --file backup/phase-a-home.json --adb "<absolute-adb-path>"
+node scripts/phase-a-recovery.cjs verify --serial <tv-serial> --file backup/phase-a-home.json --adb "<absolute-adb-path>"
+```
+The emulator integration exercises Node restore and Python verification against the original baseline.
+
 ## Backup before the real TV trial
 Real TV installation and Default Home changes require the user's approval after emulator results.
 Before installing or selecting the new Home:

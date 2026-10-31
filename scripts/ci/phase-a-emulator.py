@@ -130,7 +130,8 @@ try:
     screenshot("04-home-after-reboot.png")
 finally:
     # Always restore the exact original component, even if an assertion fails.
-    (out/"restore.txt").write_text(call("python3",recovery,"restore","--serial",serial,"--file",baseline))
+    (out/"restore.txt").write_text(call("node","scripts/phase-a-recovery.cjs","restore","--serial",serial,"--file",baseline))
+    call("python3",recovery,"verify","--serial",serial,"--file",baseline)
     sh("am","start","-a","android.intent.action.MAIN","-c","android.intent.category.HOME")
     time.sleep(1)
     assert home()==old
