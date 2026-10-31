@@ -94,7 +94,7 @@ try:
         raise AssertionError("No independent installed app available for pinning test")
     chosen=entries[0]; chosen_label=chosen.get("text")
     def tap_node(node):
-        nums=list(map(int,re.findall(r"\\d+",node.get("bounds"))))
+        nums=list(map(int,re.findall(r"\d+",node.get("bounds"))))
         sh("input","tap",str((nums[0]+nums[2])//2),str((nums[1]+nums[3])//2)); time.sleep(1)
     tap_node(chosen)
     action=next(n for n in ET.fromstring(dump()).iter("node") if n.get("text")=="ปักหมุดในหน้า Home")
@@ -104,7 +104,9 @@ try:
     assert chosen_label in dump(), "Pinned app missing after restart"
     checks.append("Installed app pin survives process restart")
     # Returning Home repositions focus and the screen before the next toolbar action.
-    sh("input","keyevent","3"); time.sleep(1)
+    if default_supported: sh("input","keyevent","3")
+    else: launch()
+    time.sleep(1)
 
     sh("input","keyevent","223"); time.sleep(2)
     assert "mWakefulness=Asleep" in sh("dumpsys","power"), sh("dumpsys","power")[-2000:]
