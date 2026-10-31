@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['feature/hisense-phase-a-launcher']
-    paths: ['launcher/**', 'scripts/ci/phase-a-*', '.github/workflows/phase-a-launcher.yml']
+    paths: ['launcher/**', 'scripts/ci/phase-a-*', 'scripts/phase-a-recovery.py', 'tests/test_phase_a_recovery.py', '.github/workflows/phase-a-launcher.yml']
 permissions:
   contents: read
 jobs:
@@ -20,6 +20,8 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Check recovery guards
+        run: python3 -m unittest discover -s tests -p test_phase_a_recovery.py -v
       - name: Build and check Phase A and Preview
         working-directory: launcher
         run: |

@@ -109,7 +109,7 @@ public final class NativePreviewActivity extends Activity {
         scroll.setClipToPadding(false);
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(38), dp(22), dp(38), dp(35));
+        body.setPadding(dp(24), dp(14), dp(24), dp(14));
         scroll.addView(body);
         background.addView(scroll);
 
@@ -133,19 +133,20 @@ public final class NativePreviewActivity extends Activity {
         heroArt = new HeroArt();
         hero.addView(heroArt, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout heroLabels = new LinearLayout(this);
-        heroLabels.setPadding(dp(32), dp(26), dp(32), dp(26));
+        heroLabels.setPadding(dp(24), dp(16), dp(24), dp(16));
         heroLabels.setOrientation(LinearLayout.VERTICAL);
         heroLabels.setGravity(Gravity.BOTTOM);
         TextView eyebrow = text("YOUR APPS     ·     YOUR HOME", 12, 0xFFDDE4F0, true);
         heroLabels.addView(eyebrow);
-        heroTitle = text("ยินดีต้อนรับกลับ", 44, WHITE, true);
+        heroTitle = text("ยินดีต้อนรับกลับ", 32, WHITE, true);
         heroLabels.addView(heroTitle);
         heroGenre = text("แอปโปรด · HDMI · ตั้งค่าทีวี", 14, 0xFFD8DCE6, false);
         heroLabels.addView(heroGenre);
         heroSummary = text("เลือกแอปเพื่อเปิด · All Apps เพื่อปักหมุด · กดค้าง OK เพื่อจัดลำดับ", 13, MUTED, false);
         heroLabels.addView(heroSummary);
         hero.addView(heroLabels, new FrameLayout.LayoutParams(-1, -1));
-        body.addView(hero, new LinearLayout.LayoutParams(-1, dp(245)));
+        float screenDp = getResources().getDisplayMetrics().heightPixels / getResources().getDisplayMetrics().density;
+        body.addView(hero, new LinearLayout.LayoutParams(-1, dp(Math.max(125, Math.min(240, screenDp - 400)))));
 
         LinearLayout appTitle = sectionTitle("แอปของคุณ", "กดค้าง OK 2 วินาทีเพื่อจัดลำดับ");
         instructions = (TextView) appTitle.getChildAt(1);
@@ -160,8 +161,8 @@ public final class NativePreviewActivity extends Activity {
         body.addView(appScroll, new LinearLayout.LayoutParams(-1, dp(127)));
         buildAppCards(null);
 
-        TextView help = text("All Apps: เปิด / ปักหมุด / นำออกจากแอปโปรด     ·     ⌂: เลือก Home / กลับ Home เดิม", 13, MUTED, false);
-        help.setPadding(dp(8), dp(18), dp(8), dp(18));
+        TextView help = text("All Apps: ปักหมุดแอป     ·     ⌂: ตั้งค่า Home / ย้อนกลับ", 13, MUTED, false);
+        help.setPadding(dp(8), dp(8), dp(8), dp(8));
         body.addView(help);
         setContentView(background);
         handler.post(() -> { TextView first = appCards.get(appOrder.get(0)); if (first != null) first.requestFocus(); });

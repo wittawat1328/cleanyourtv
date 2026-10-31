@@ -23,6 +23,7 @@ if a.operation=="backup":
         raise SystemExit("No unambiguous stock Home found. Select the original Home first.")
     data={"schema":1,"serial":a.serial,"user":user,"home":home,
           "fingerprint":sh("getprop","ro.build.fingerprint"),
+          "properties":sh("getprop"),
           "disabled":sh("pm","list","packages","-d","--user",user).splitlines(),
           "packages":sh("pm","list","packages","--user",user).splitlines(),
           "settings_system":sh("settings","--user",user,"list","system"),
