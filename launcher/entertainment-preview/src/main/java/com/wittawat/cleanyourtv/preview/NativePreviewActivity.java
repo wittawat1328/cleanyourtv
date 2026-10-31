@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -29,6 +31,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -56,7 +61,7 @@ public final class NativePreviewActivity extends Activity {
     private HorizontalScrollView appScroll;
     private TextView instructions, heroTitle, heroGenre, heroSummary;
     private HeroArt heroArt;
-    private boolean moving, held;
+    private boolean moving, held, ignoreHeldOkRelease;
     private String selectedId;
     private ArrayList<String> previousOrder;
     private Runnable holdTask;
@@ -106,6 +111,7 @@ public final class NativePreviewActivity extends Activity {
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         TextView brand = text("◈  CLEAN YOUR TV     /     HOME", 18, WHITE, true);
         toolbar.addView(brand, new LinearLayout.LayoutParams(0, dp(50), 1));
+        toolbar.addView(toolbarButton("▦", "All Apps", () -> showAppChooser(false)));
         toolbar.addView(toolbarButton("▣", "HDMI / Inputs", () -> new AlertDialog.Builder(this)
                 .setTitle("HDMI / Inputs")
                 .setMessage("Native Preview: ยังไม่สั่งสลับพอร์ตบนเครื่องจริง เมื่อทดสอบพอร์ต Hisense แล้วจึงจะเปิดใช้งาน")
@@ -236,6 +242,12 @@ public final class NativePreviewActivity extends Activity {
                 return true;
             }
             if(back||ok) {
+                // The first OK-UP finishes the original two-second hold, not the move.
+                // Otherwise releasing that held button would instantly save and exit move mode.
+                if(ok && event.getAction()==KeyEvent.ACTION_UP && ignoreHeldOkRelease) {
+                    ignoreHeldOkRelease=false;
+                    return true;
+                }
                 if(event.getAction()==KeyEvent.ACTION_UP) finishMove(ok);
                 return true;
             }
@@ -263,6 +275,7 @@ public final class NativePreviewActivity extends Activity {
     private void cancelHold(){if(holdTask!=null){handler.removeCallbacks(holdTask);holdTask=null;}}
     private void startMove(String id){
         moving=true;selectedId=id;previousOrder=new ArrayList<>(appOrder);
+        ignoreHeldOkRelease=true;
         instructions.setText("◀ ▶ ย้ายแอป    ·    OK บันทึก    ·    Back ยกเลิก");
         TextView card=appCards.get(id);
         if(card!=null)card.setBackground(rounded(appColors[indexOf(id)],0xFF78D4FF,12));
@@ -270,7 +283,7 @@ public final class NativePreviewActivity extends Activity {
     private void finishMove(boolean save){
         if(!moving)return;
         String id=selectedId;
-        moving=false;selectedId=null;
+        moving=false;selectedId=null;ignoreHeldOkRelease=false;
         if(save){
             getPreferences(MODE_PRIVATE).edit().putString("app_order",AppOrder.serialize(appOrder)).apply();
         } else {
@@ -323,7 +336,12 @@ public final class NativePreviewActivity extends Activity {
 
     private void launchApp(String id){
         if("browser".equals(id)){
-            information("Browser", "ยังไม่ระบุแอป Browser จริงของ Hisense โปรดเลือก Package ก่อนเปิดใช้งาน เพื่อไม่เปิดผิดแอป");
+            String saved=getPreferences(MODE_PRIVATE).getString("browser_package", "");
+            if(saved!=null && !saved.isEmpty()) {
+                if(launchPackage(saved, "Browser")) return;
+                getPreferences(MODE_PRIVATE).edit().remove("browser_package").apply();
+            }
+            showAppChooser(true);
             return;
         }
         if("settings".equals(id)){
@@ -332,15 +350,76 @@ public final class NativePreviewActivity extends Activity {
             return;
         }
         int idx=indexOf(id);
-        Intent launch=null;
+        if(idx>=0 && !appPackages[idx].isEmpty() && launchPackage(appPackages[idx],appNames[idx])) return;
+        information(idx>=0?appNames[idx]:"แอป", "ไม่พบแอปที่ติดตั้งหรือไม่อนุญาตให้เปิดจากอุปกรณ์นี้");
+    }
+
+    // Open only explicitly selected installed apps; never change system package state.
+    private boolean launchPackage(String pkg,String label){
         try{
-            if(idx>=0&&!appPackages[idx].isEmpty()){
-                launch=getPackageManager().getLeanbackLaunchIntentForPackage(appPackages[idx]);
-                if(launch==null)launch=getPackageManager().getLaunchIntentForPackage(appPackages[idx]);
+            Intent launch=getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+            if(launch==null)launch=getPackageManager().getLaunchIntentForPackage(pkg);
+            if(launch==null)return false;
+            startActivity(launch);
+            return true;
+        }catch(ActivityNotFoundException | SecurityException ignored){
+            return false;
+        }
+    }
+
+    // Android 11 requires manifest package visibility for both LAUNCHER and LEANBACK_LAUNCHER.
+    // The OS supplies only enabled, exported launch activities. System components are not modified.
+    private List<ResolveInfo> discoverApps(){
+        PackageManager pm=getPackageManager();
+        LinkedHashMap<String,ResolveInfo> discovered=new LinkedHashMap<>();
+        String[] categories={Intent.CATEGORY_LEANBACK_LAUNCHER,Intent.CATEGORY_LAUNCHER};
+        for(String category:categories){
+            Intent query=new Intent(Intent.ACTION_MAIN).addCategory(category);
+            for(ResolveInfo info:pm.queryIntentActivities(query,0)){
+                if(info.activityInfo==null || !info.activityInfo.exported || !info.activityInfo.enabled)continue;
+                String pkg=info.activityInfo.packageName;
+                if(getPackageName().equals(pkg))continue;
+                if(!discovered.containsKey(pkg))discovered.put(pkg,info);
             }
-            if(launch!=null){startActivity(launch);return;}
-        }catch(ActivityNotFoundException|SecurityException ignored){}
-        information(appNames[idx], "ไม่พบแอปที่ติดตั้งหรือไม่อนุญาตให้เปิดจากอุปกรณ์นี้");
+        }
+        ArrayList<ResolveInfo> result=new ArrayList<>(discovered.values());
+        Collections.sort(result, Comparator.comparing(
+            item -> item.loadLabel(pm).toString(),String.CASE_INSENSITIVE_ORDER));
+        return result;
+    }
+
+    private void showAppChooser(boolean selectBrowser){
+        PackageManager pm=getPackageManager();
+        List<ResolveInfo> apps=discoverApps();
+        if(selectBrowser){
+            // Candidate list is a suggestion only: do not assign an unknown browser package automatically.
+            ArrayList<ResolveInfo> browsers=new ArrayList<>();
+            for(ResolveInfo app:apps){
+                String label=app.loadLabel(pm).toString().toLowerCase(java.util.Locale.ROOT);
+                String pkg=app.activityInfo.packageName.toLowerCase(java.util.Locale.ROOT);
+                if(label.contains("browser") || label.contains("internet") || label.contains("web")
+                        || pkg.contains("browser") || pkg.contains("tvbro") || pkg.contains("chrome")
+                        || pkg.contains("firefox") || pkg.contains("puffin"))browsers.add(app);
+            }
+            if(!browsers.isEmpty())apps=browsers;
+        }
+        if(apps.isEmpty()){
+            information(selectBrowser?"Browser":"All Apps","ยังไม่พบแอปที่เปิดใช้งานได้บนอุปกรณ์นี้");
+            return;
+        }
+        final List<ResolveInfo> choices=apps;
+        String[] labels=new String[choices.size()];
+        for(int i=0;i<choices.size();i++)labels[i]=choices.get(i).loadLabel(pm).toString();
+        new AlertDialog.Builder(this)
+          .setTitle(selectBrowser?"เลือก Browser ที่ติดตั้งไว้":"All Apps · แอปที่เปิดใช้งานได้")
+          .setItems(labels,(dialog,position)->{
+              ResolveInfo selected=choices.get(position);
+              String pkg=selected.activityInfo.packageName;
+              if(selectBrowser)getPreferences(MODE_PRIVATE).edit().putString("browser_package",pkg).apply();
+              if(!launchPackage(pkg,labels[position]))
+                  information(labels[position],"ไม่สามารถเปิดแอปนี้ได้ โปรดตรวจสอบการติดตั้ง");
+          })
+          .setNegativeButton("ยกเลิก",null).show();
     }
 
     private void information(String title,String message){
