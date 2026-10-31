@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Read-only package discovery for explicit app launches. No privileged permissions. -->
+    <queries>
+        <package android:name="com.google.android.youtube.tv" />
+        <package android:name="com.netflix.ninja" />
+        <package android:name="com.amazon.amazonvideo.livingroom" />
+        <package android:name="com.disney.disneyplus" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+    </queries>
+    <application
+        android:label="CleanYourTV Native Preview"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:icon="@drawable/icon_native"
+        android:banner="@drawable/banner_native">
+        <!-- Intentionally no HOME/DEFAULT intent and NO services, providers or receivers.
+             Opening this activity cannot become the device's HOME application. -->
+        <activity
+            android:name=".NativePreviewActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -14,3 +14,9 @@ dependencyResolutionManagement {
 }
 rootProject.name = "tvhome"
 include ':app'
+// Opt-in only. The ordinary upstream launcher build remains a single module.
+// CI includes the separate, non-HOME Native Preview with -PincludeNativePreview=true.
+if (providers.gradleProperty('includeNativePreview').getOrElse('false').toBoolean()) {
+    def nativePreviewModule = ':entertainment-preview'
+    include nativePreviewModule
+}
