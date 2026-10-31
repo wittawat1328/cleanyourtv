@@ -11,12 +11,15 @@ import android.media.tv.TvContract;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.RectF;
+import java.io.InputStream;
+import java.io.IOException;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -63,7 +66,6 @@ public final class NativePreviewActivity extends Activity {
     private LinearLayout appStrip;
     private HorizontalScrollView appScroll;
     private TextView instructions, heroTitle, heroGenre, heroSummary;
-    private HeroArt heroArt;
     private boolean moving, held, ignoreHeldOkRelease;
     private String selectedId;
     private ArrayList<String> previousOrder;
@@ -103,6 +105,7 @@ public final class NativePreviewActivity extends Activity {
     private void render() {
         FrameLayout background = new FrameLayout(this);
         background.setBackgroundColor(BLACK);
+        background.addView(new WallpaperView(), new FrameLayout.LayoutParams(-1, -1));
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
@@ -130,8 +133,6 @@ public final class NativePreviewActivity extends Activity {
         body.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(50)));
 
         FrameLayout hero = new FrameLayout(this);
-        heroArt = new HeroArt();
-        hero.addView(heroArt, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout heroLabels = new LinearLayout(this);
         heroLabels.setPadding(dp(24), dp(16), dp(24), dp(16));
         heroLabels.setOrientation(LinearLayout.VERTICAL);
@@ -146,7 +147,7 @@ public final class NativePreviewActivity extends Activity {
         heroLabels.addView(heroSummary);
         hero.addView(heroLabels, new FrameLayout.LayoutParams(-1, -1));
         float screenDp = getResources().getDisplayMetrics().heightPixels / getResources().getDisplayMetrics().density;
-        body.addView(hero, new LinearLayout.LayoutParams(-1, dp(Math.max(125, Math.min(240, screenDp - 400)))));
+        body.addView(hero, new LinearLayout.LayoutParams(-1, dp(Math.max(125, Math.min(340, screenDp - 260)))));
 
         LinearLayout appTitle = sectionTitle("แอปของคุณ", "กดค้าง OK 2 วินาทีเพื่อจัดลำดับ");
         instructions = (TextView) appTitle.getChildAt(1);
@@ -155,15 +156,12 @@ public final class NativePreviewActivity extends Activity {
         appScroll.setHorizontalScrollBarEnabled(false);
         appScroll.setClipToPadding(false);
         appStrip = new LinearLayout(this);
-        appStrip.setPadding(dp(12), dp(14), dp(12), dp(14));
+        appStrip.setPadding(dp(12), dp(8), dp(12), dp(8));
         appStrip.setOrientation(LinearLayout.HORIZONTAL);
         appScroll.addView(appStrip);
-        body.addView(appScroll, new LinearLayout.LayoutParams(-1, dp(127)));
+        body.addView(appScroll, new LinearLayout.LayoutParams(-1, dp(110)));
         buildAppCards(null);
 
-        TextView help = text("All Apps: ปักหมุดแอป     ·     ⌂: ตั้งค่า Home / ย้อนกลับ", 13, MUTED, false);
-        help.setPadding(dp(8), dp(8), dp(8), dp(8));
-        body.addView(help);
         setContentView(background);
         handler.post(() -> { TextView first = appCards.get(appOrder.get(0)); if (first != null) first.requestFocus(); });
     }
@@ -209,7 +207,7 @@ public final class NativePreviewActivity extends Activity {
             card.setClickable(true);
             card.setTag(id);
             card.setBackground(rounded(color, 0, 12));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(160), dp(91));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(160), dp(82));
             p.setMargins(dp(6), dp(3), dp(6), dp(3));
             appStrip.addView(card, p);
             appCards.put(id,card);
@@ -534,57 +532,52 @@ public final class NativePreviewActivity extends Activity {
     }
     @Override protected void onDestroy(){cancelHold();handler.removeCallbacksAndMessages(null);super.onDestroy();}
 
-    private final class HeroArt extends View {
-        private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int[][] palettes={
-            {0xFF0F182D,0xFF334A62},{0xFF1B151D,0xFF774D39},
-            {0xFF0C1533,0xFF54406B},{0xFF092F38,0xFF237481}
-        };
-        private final Path mountains=new Path();
-        private final int[] glowColors={0x99D2DCEA,0x444B789B,0x00202030};
-        private final int[] fadeColors={0xFF07090F,0xE707090F,0x0007090F};
-        private final float[] fadePositions={0f,.28f,.82f};
-        private Shader baseShader,glowShader,fadeShader;
-        private int palette;
-        HeroArt(){super(NativePreviewActivity.this);}
-        void setPalette(int index){
-            if(palette==index)return;
-            palette=index;rebuildShaders();invalidate();
+    /** Decode once. Scale to cover the screen; keep all photo data local and offline. */
+    private final class WallpaperView extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        private final RectF destination = new RectF();
+        private Bitmap photo;
+        private Shader verticalShade, textShade;
+
+        WallpaperView() {
+            super(NativePreviewActivity.this);
+            setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            try (InputStream stream = getAssets().open("home_wallpaper.jpg")) {
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inPreferredConfig = Bitmap.Config.RGB_565;
+                photo = BitmapFactory.decodeStream(stream, null, options);
+            } catch (IOException ignored) {
+                // Generic source builds remain usable when no personal wallpaper is supplied.
+            }
         }
-        @Override protected void onSizeChanged(int w,int h,int oldW,int oldH){
-            super.onSizeChanged(w,h,oldW,oldH);
-            rebuildShaders();
+
+        @Override protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+            super.onSizeChanged(w, h, oldW, oldH);
+            if (w <= 0 || h <= 0) return;
+            if (photo != null) {
+                float scale = Math.max((float) w / photo.getWidth(), (float) h / photo.getHeight());
+                float width = photo.getWidth() * scale, height = photo.getHeight() * scale;
+                destination.set((w - width) / 2f, (h - height) / 2f, (w + width) / 2f, (h + height) / 2f);
+            }
+            verticalShade = new LinearGradient(0, 0, 0, h,
+                new int[]{0x6607090F, 0x3007090F, 0xA607090F},
+                new float[]{0f, .45f, 1f}, Shader.TileMode.CLAMP);
+            textShade = new LinearGradient(0, 0, w, 0,
+                0x9907090F, 0x1007090F, Shader.TileMode.CLAMP);
         }
-        private void rebuildShaders(){
-            int w=getWidth(),h=getHeight();
-            if(w<=0||h<=0)return;
-            int[] colors=palettes[palette%palettes.length];
-            baseShader=new LinearGradient(0,0,w,h,colors[0],colors[1],Shader.TileMode.CLAMP);
-            glowShader=new RadialGradient(w*.75f,h*.36f,h*.45f,glowColors,null,Shader.TileMode.CLAMP);
-            fadeShader=new LinearGradient(0,0,w,0,fadeColors,fadePositions,Shader.TileMode.CLAMP);
-            mountains.reset();
-            mountains.moveTo(w*.40f,h);
-            mountains.lineTo(w*.52f,h*.61f);
-            mountains.lineTo(w*.59f,h*.80f);
-            mountains.lineTo(w*.68f,h*.42f);
-            mountains.lineTo(w*.81f,h*.85f);
-            mountains.lineTo(w*.92f,h*.57f);
-            mountains.lineTo(w,h*.76f);
-            mountains.lineTo(w,h);
-            mountains.close();
-        }
-        @Override protected void onDraw(Canvas canvas){
-            int w=getWidth(),h=getHeight();
-            if(baseShader==null)return;
-            paint.setShader(baseShader);
-            canvas.drawRect(0,0,w,h,paint);
-            paint.setShader(glowShader);
-            canvas.drawCircle(w*.75f,h*.36f,h*.45f,paint);
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (photo == null) {
+                canvas.drawColor(BLACK);
+                return;
+            }
             paint.setShader(null);
-            paint.setColor(0xDD0A1421);
-            canvas.drawPath(mountains,paint);
-            paint.setShader(fadeShader);
-            canvas.drawRect(0,0,w,h,paint);
+            canvas.drawBitmap(photo, null, destination, paint);
+            paint.setShader(verticalShade);
+            canvas.drawRect(0, 0, getWidth(), getHeight(), paint);
+            paint.setShader(textShade);
+            canvas.drawRect(0, 0, getWidth(), getHeight(), paint);
             paint.setShader(null);
         }
     }

@@ -2,8 +2,15 @@
 
 Target: Hisense SmartTV 4K FFM / Android 11.
 Build: `cd launcher && ./gradlew -PincludePhaseA=true :phase-a-launcher:assembleDebug`
-App ID: `com.wittawat.cleanyourtv.launcher` / version 0.2-phase-a.
+App ID: `com.wittawat.cleanyourtv.launcher` / version 0.2.1-phase-a-wallpaper.
 The earlier Native Preview remains a separate application.
+
+## Personal Home wallpaper
+Place a local JPEG at `launcher/phase-a-launcher/src/main/assets/home_wallpaper.jpg` before building.
+The asset is excluded from Git to keep personal photos out of the public repository.
+The APK bundles the image for offline use. The background scales to cover the screen without
+stretching; cached translucent gradients keep labels readable. No image is downloaded at runtime.
+A generic build without the personal asset falls back to the dark background.
 
 ## Home and apps
 - Offline native Home with remote focus.
