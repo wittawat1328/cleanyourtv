@@ -45,7 +45,7 @@ try:
     assert home()==old, "Installing a HOME candidate changed the default"
     checks.append("Installation preserves original Default Home")
     launch(); time.sleep(2); assert_home(); screenshot("01-home.png")
-    tests=sh("am","instrument","-w",pkg+".test/android.test.InstrumentationTestRunner")
+    tests=sh("am","instrument","-w",pkg+".test/com.wittawat.cleanyourtv.preview.LauncherUiTest")
     (out/"instrumentation.txt").write_text(tests)
     assert "OK (1 test)" in tests and "FAILURES" not in tests, tests
     checks.append("Reorder: held OK release, save, cancel and pause cancellation")

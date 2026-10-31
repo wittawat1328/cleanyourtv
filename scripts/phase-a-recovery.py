@@ -39,7 +39,7 @@ else:
         raise SystemExit("Firmware changed: inspect the saved Home manually before restoring.")
     old=data["home"]
     homes=sh("cmd","package","query-activities","--brief","--user",user,"-a","android.intent.action.MAIN","-c","android.intent.category.HOME").splitlines()
-    if old not in homes: raise SystemExit("Original Home is unavailable. Restore refused; no package changes made.")
+    if old not in [line.strip() for line in homes]: raise SystemExit("Original Home is unavailable. Restore refused; no package changes made.")
     if a.operation=="restore":
         print(sh("cmd","package","set-home-activity","--user",user,old))
         sh("am","start","--user",user,"-a","android.intent.action.MAIN","-c","android.intent.category.HOME")

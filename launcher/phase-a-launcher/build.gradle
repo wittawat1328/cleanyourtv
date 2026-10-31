@@ -8,7 +8,7 @@ android {
         targetSdk 34
         versionCode 2
         versionName '0.2-phase-a'
-        testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+        testInstrumentationRunner 'com.wittawat.cleanyourtv.preview.LauncherUiTest'
     }
     sourceSets { main.res.srcDirs += ['../entertainment-preview/src/main/res'] }
     compileOptions {
