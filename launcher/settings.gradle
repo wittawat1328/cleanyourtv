@@ -14,6 +14,9 @@ dependencyResolutionManagement {
 }
 rootProject.name = "tvhome"
 include ':app'
+if (providers.gradleProperty('includePhaseA').getOrElse('false').toBoolean()) {
+    include ':phase-a-launcher'
+}
 // Opt-in only. The ordinary upstream launcher build remains a single module.
 // CI includes the separate, non-HOME Native Preview with -PincludeNativePreview=true.
 if (providers.gradleProperty('includeNativePreview').getOrElse('false').toBoolean()) {
