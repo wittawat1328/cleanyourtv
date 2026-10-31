@@ -251,7 +251,10 @@ public final class NativePreviewActivity extends Activity {
                 if(event.getAction()==KeyEvent.ACTION_UP) finishMove(ok);
                 return true;
             }
-            return true;
+            // Never swallow Volume, Home, Power or vendor shortcuts. Only D-pad
+            // navigation is reserved for moving a tile; other keys go to the OS.
+            if(key==KeyEvent.KEYCODE_DPAD_UP || key==KeyEvent.KEYCODE_DPAD_DOWN) return true;
+            return false;
         }
         if(!ok)return false;
         if(event.getAction()==KeyEvent.ACTION_DOWN){
