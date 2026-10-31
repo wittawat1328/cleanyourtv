@@ -6,8 +6,9 @@ This module is a **native Android (Java) TV app**, NOT a default launcher replac
 - Cinematic dark Home, custom-painted fictional Hero illustration, horizontal content, recommendations and episodes.
 - D-pad navigation with small focus scale animations.
 - Apps in this order: YouTube, Netflix, **Browser #3**, Prime Video, Disney+, Settings.
-- Hold TV remote OK 2 seconds on an app: Left/Right move, OK save, Back cancel. Order saved in private SharedPreferences.
+- Hold TV remote OK 2 seconds on an app: **release OK to remain in move mode**, Left/Right move, OK save, Back cancel. Order saved in private SharedPreferences. Long-press release must not immediately exit move mode.
 - Compact HDMI/Inputs top icon and Settings icon. HDMI intentionally displays a safety dialog until device-specific input routing is verified.
+- **All Apps** top icon discovers installed apps with exported launchable activities using Android 11 package queries, including newly installed apps. The user explicitly chooses Browser from installed apps once and the chosen package is stored locally.
 - YouTube / Netflix / Prime / Disney+ launch only when their **explicit package** is installed. Browser deliberately prompts for the missing app identity rather than guessing.
 - All show titles, poster gradients and episode details are fictional; no third-party streaming feeds, ads, remote API calls or video auto-play.
 
@@ -33,3 +34,11 @@ Never use emulator passing as proof of actual Hisense hardware compatibility.
 - Confirm the **actual Browser package** and Hisense HDMI routing separately. No guessing.
 - Request explicit user approval before even a **non-default APK install on real TV**.
 - Debloat (Phase B) requires a different explicit approval and rollback plan.
+
+## Before the first physical-TV test
+- Download only the `entertainment-preview-debug.apk` extracted from a **successful** `Hisense Native Android 11 Safety` Action run.
+- Install as an ordinary application from the TV's file manager (or an authorized sideload), without running any disable scripts or setting a default launcher.
+- Check that original Home, Settings, Wi-Fi, volume, HDMI and remote app hotkeys work before and after the preview.
+- Launch `CleanYourTV Native Preview` from the original Home. Press **Back** to close it, press **Home** to return to the original Home.
+- Test D-pad left/right/down/up, hold OK to reorder, All Apps list, and Browser selection. If Home behaves differently, stop and remove the preview through Settings > Apps, then do not proceed to launcher replacement.
+- The preview is not an approved production Home replacement and has no debloat functionality.
