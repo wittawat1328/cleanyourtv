@@ -433,29 +433,57 @@ public final class NativePreviewActivity extends Activity {
     @Override protected void onDestroy(){cancelHold();handler.removeCallbacksAndMessages(null);super.onDestroy();}
 
     private final class HeroArt extends View {
-        private int palette;
         private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int[][] palettes={
+            {0xFF0F182D,0xFF334A62},{0xFF1B151D,0xFF774D39},
+            {0xFF0C1533,0xFF54406B},{0xFF092F38,0xFF237481}
+        };
+        private final Path mountains=new Path();
+        private final int[] glowColors={0x99D2DCEA,0x444B789B,0x00202030};
+        private final int[] fadeColors={0xFF07090F,0xE707090F,0x0007090F};
+        private final float[] fadePositions={0f,.28f,.82f};
+        private Shader baseShader,glowShader,fadeShader;
+        private int palette;
         HeroArt(){super(NativePreviewActivity.this);}
-        void setPalette(int index){palette=index;invalidate();}
+        void setPalette(int index){
+            if(palette==index)return;
+            palette=index;rebuildShaders();invalidate();
+        }
+        @Override protected void onSizeChanged(int w,int h,int oldW,int oldH){
+            super.onSizeChanged(w,h,oldW,oldH);
+            rebuildShaders();
+        }
+        private void rebuildShaders(){
+            int w=getWidth(),h=getHeight();
+            if(w<=0||h<=0)return;
+            int[] colors=palettes[palette%palettes.length];
+            baseShader=new LinearGradient(0,0,w,h,colors[0],colors[1],Shader.TileMode.CLAMP);
+            glowShader=new RadialGradient(w*.75f,h*.36f,h*.45f,glowColors,null,Shader.TileMode.CLAMP);
+            fadeShader=new LinearGradient(0,0,w,0,fadeColors,fadePositions,Shader.TileMode.CLAMP);
+            mountains.reset();
+            mountains.moveTo(w*.40f,h);
+            mountains.lineTo(w*.52f,h*.61f);
+            mountains.lineTo(w*.59f,h*.80f);
+            mountains.lineTo(w*.68f,h*.42f);
+            mountains.lineTo(w*.81f,h*.85f);
+            mountains.lineTo(w*.92f,h*.57f);
+            mountains.lineTo(w,h*.76f);
+            mountains.lineTo(w,h);
+            mountains.close();
+        }
         @Override protected void onDraw(Canvas canvas){
             int w=getWidth(),h=getHeight();
-            int[][] colors={{0xFF0F182D,0xFF334A62},{0xFF1B151D,0xFF774D39},
-                    {0xFF0C1533,0xFF54406B},{0xFF092F38,0xFF237481}};
-            int[] cs=colors[palette%4];
-            paint.setShader(new LinearGradient(0,0,w,h,cs[0],cs[1],Shader.TileMode.CLAMP));
-            canvas.drawRect(0,0,w,h,paint);paint.setShader(null);
-            paint.setShader(new RadialGradient(w*.75f,h*.36f,h*.45f,
-                    new int[]{0x99D2DCEA,0x444B789B,0x00202030},null,Shader.TileMode.CLAMP));
-            canvas.drawCircle(w*.75f,h*.36f,h*.45f,paint);paint.setShader(null);
-            Path mountain=new Path();mountain.moveTo(w*.40f,h);
-            mountain.lineTo(w*.52f,h*.61f);mountain.lineTo(w*.59f,h*.80f);
-            mountain.lineTo(w*.68f,h*.42f);mountain.lineTo(w*.81f,h*.85f);
-            mountain.lineTo(w*.92f,h*.57f);mountain.lineTo(w,h*.76f);mountain.lineTo(w,h);mountain.close();
-            paint.setColor(0xDD0A1421);canvas.drawPath(mountain,paint);
-            paint.setShader(new LinearGradient(0,0,w,0,
-                    new int[]{0xFF07090F,0xE707090F,0x0007090F},
-                    new float[]{0f,.28f,.82f},Shader.TileMode.CLAMP));
-            canvas.drawRect(0,0,w,h,paint);paint.setShader(null);
+            if(baseShader==null)return;
+            paint.setShader(baseShader);
+            canvas.drawRect(0,0,w,h,paint);
+            paint.setShader(glowShader);
+            canvas.drawCircle(w*.75f,h*.36f,h*.45f,paint);
+            paint.setShader(null);
+            paint.setColor(0xDD0A1421);
+            canvas.drawPath(mountains,paint);
+            paint.setShader(fadeShader);
+            canvas.drawRect(0,0,w,h,paint);
+            paint.setShader(null);
         }
     }
 }
