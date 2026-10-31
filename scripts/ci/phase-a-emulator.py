@@ -40,6 +40,8 @@ def dump():
     sh("uiautomator","dump","/sdcard/phase-a.xml")
     return sh("cat","/sdcard/phase-a.xml")
 checks=[]
+blocked=[]
+default_supported=False
 try:
     adb("install","-r",apk); adb("install","-r",testapk)
     assert home()==old, "Installing a HOME candidate changed the default"
@@ -57,13 +59,17 @@ try:
     (out/"home-role.txt").write_text(sh("dumpsys","role"))
     sh("input","keyevent","3"); time.sleep(2)
     (out/"home-after-selection.txt").write_text(home()+"\n"+resumed())
-    assert_home()
-    assert home()==component, home()
-    checks.append("Opt-in: Home launches Phase A")
-    sh("am","start","-a","android.settings.SETTINGS"); sh("input","keyevent","3"); time.sleep(1); assert_home()
-    checks.append("Home returns from Settings")
-    sh("am","force-stop",pkg); sh("input","keyevent","3"); time.sleep(1); assert_home()
-    checks.append("Home recovers after app process stops")
+    default_supported = home()==component and any(pkg in line for line in resumed().splitlines() if "mResumedActivity" in line)
+    if default_supported:
+        checks.append("Opt-in: Home launches Phase A")
+        sh("am","start","-a","android.settings.SETTINGS"); sh("input","keyevent","3"); time.sleep(1); assert_home()
+        checks.append("Home returns from Settings")
+        sh("am","force-stop",pkg); sh("input","keyevent","3"); time.sleep(1); assert_home()
+        checks.append("Home recovers after app process stops")
+    else:
+        blocked.append("Default Home: role selection succeeds but stock TV launcher priority 2 overrides Phase A priority 0; no packages disabled")
+        call("python3",recovery,"restore","--serial",serial,"--file",baseline)
+        launch(); time.sleep(1); assert_home()
     # Move focus up from app row and use the labelled Inputs button through UIAutomator bounds.
     xml=dump()
     import xml.etree.ElementTree as ET
@@ -105,7 +111,7 @@ try:
     sh("input","keyevent","224"); time.sleep(2)
     assert "mWakefulness=Awake" in sh("dumpsys","power")
     assert_home()
-    checks.append("Android sleep/wake preserves Home (OEM standby still requires real TV)")
+    checks.append("Android sleep/wake preserves running Launcher activity (OEM standby still requires real TV)")
     adb("reboot")
     for _ in range(90):
         time.sleep(2)
@@ -114,8 +120,13 @@ try:
         except subprocess.CalledProcessError: pass
     else: raise AssertionError("Emulator reboot timed out")
     sh("input","keyevent","224"); time.sleep(3)
-    assert home()==component; assert_home()
-    checks.append("Reboot retains chosen Home")
+    if default_supported:
+        assert home()==component; assert_home()
+        checks.append("Reboot retains chosen Home")
+    else:
+        assert home()==old
+        blocked.append("Reboot into Phase A cannot pass while stock Home overrides the selected role")
+        launch(); time.sleep(1); assert_home()
     screenshot("04-home-after-reboot.png")
 finally:
     # Always restore the exact original component, even if an assertion fails.
@@ -126,5 +137,6 @@ finally:
     assert sh("pm","list","packages","-d")==disabled
     (out/"logcat.txt").write_text(sh("logcat","-d","-v","time"))
 checks.append("Exact original Home restored; disabled package list unchanged")
-(out/"result.json").write_text(json.dumps({"status":"PASS","checks":checks,"limitations":["Physical HDMI switching, real remote and Hisense standby require real TV test"]},indent=2))
-print(json.dumps(checks,indent=2))
+(out/"result.json").write_text(json.dumps({"status":"PASS" if not blocked else "BLOCKED","checks":checks,"blocked":blocked,"limitations":["Physical HDMI switching, real remote and Hisense standby require real TV test"]},indent=2))
+print(json.dumps({"checks":checks,"blocked":blocked},indent=2))
+if blocked: raise SystemExit(2)

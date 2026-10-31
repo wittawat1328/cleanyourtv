@@ -465,11 +465,25 @@ public final class NativePreviewActivity extends Activity {
 
     private void showHomeMenu() {
         new AlertDialog.Builder(this).setTitle("Home / Recovery")
-            .setItems(new String[]{"เลือกแอป Home เริ่มต้น", "เปิด Home เดิม", "วิธีย้อนกลับ"}, (d, which) -> {
+            .setItems(new String[]{"เลือกแอป Home เริ่มต้น", "เปิด Home เดิม", "วิธีย้อนกลับ", "ตรวจสถานะ Home"}, (d, which) -> {
                 if (which == 0) openSettings(Settings.ACTION_HOME_SETTINGS);
                 else if (which == 1) openOtherHome();
+                else if (which == 3) showHomeStatus();
                 else information("ย้อนกลับสู่ Home เดิม", "ไปที่ Settings > Apps > Default apps > Home app แล้วเลือก Google TV Home เดิม หากเมนูต่างกันให้ใช้คู่มือ Recovery ที่จัดเตรียมไว้ การเปิด Home เดิมชั่วคราวไม่ได้เปลี่ยน Default Home");
             }).setNegativeButton("ปิด", null).show();
+    }
+
+    private void showHomeStatus() {
+        ResolveInfo resolved = getPackageManager().resolveActivity(
+            new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY);
+        if (resolved == null || resolved.activityInfo == null) {
+            information("สถานะ Home", "ระบบยังไม่ระบุ Home ที่เปิดได้ โปรดตรวจจากเมนูตั้งค่าทีวี"); return;
+        }
+        boolean ours = getPackageName().equals(resolved.activityInfo.packageName);
+        information("สถานะ Home", ours
+            ? "ระบบชี้ Home มาที่ CleanYourTV Launcher แล้ว โปรดทดสอบปุ่ม Home จริงและการปลุกทีวีก่อนใช้งานต่อเนื่อง"
+            : "ขณะนี้ระบบยังชี้ Home ไปที่ " + resolved.loadLabel(getPackageManager())
+                + " หากเลือก CleanYourTV แล้วแต่ปุ่ม Home ยังกลับตัวเดิม แสดงว่าเฟิร์มแวร์ยังให้ Home เดิมทำงาน ให้กลับไปใช้ Home เดิมและตรวจสอบก่อน");
     }
 
     private void openOtherHome() {

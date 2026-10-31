@@ -43,6 +43,16 @@ If that menu is unavailable use the saved ADB restore procedure.
 Keep the original Google TV Home, Settings, input services, SmartSense, AIoT and Setup Wizard enabled.
 This phase performs no debloating.
 
+## Emulator limitation found during Phase A
+The API30 Google Android TV image gives the stock TV launcher HOME intent priority 2.
+Third party apps have priority 0. Setting the HOME role reports success but the stock
+launcher still receives Home. This is a blocked end-to-end check, never a full PASS.
+The integration runner continues independent UI/sleep/recovery tests, records BLOCKED,
+restores the exact original Home, and exits nonzero.
+No system packages are disabled to obtain a passing result.
+A real Hisense must be inspected for the same behaviour before authorizing Default Home.
+The Home menu includes a status check to show which Home Android actually resolves.
+
 ## Real TV acceptance checklist (after approval)
 1. Back up while the original Home is still selected; verify Wi-Fi/ADB access.
 2. Install the separate Phase A APK; open it as an ordinary app first.
