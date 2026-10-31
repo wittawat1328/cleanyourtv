@@ -38,13 +38,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Phase A HOME candidate. Default selection is performed by Android settings only.
- * No streaming API is used; artwork and episodes are fictional placeholders.
+ * Offline native UI; no streaming API, boot receiver or key interception service.
  */
 public final class NativePreviewActivity extends Activity {
     private static final int BLACK = 0xFF07090F;
@@ -202,9 +201,6 @@ public final class NativePreviewActivity extends Activity {
             final int color = idx >= 0 ? appColors[idx] : 0xFF253D58;
             ResolveInfo info = installedApps.get(id);
             final String label = idx >= 0 ? appNames[idx] : info == null ? id : info.loadLabel(getPackageManager()).toString();
-            LinearLayout column = new LinearLayout(this);
-            column.setOrientation(LinearLayout.VERTICAL);
-            column.setGravity(Gravity.CENTER);
             TextView card = text((idx >= 0 ? appSymbols[idx] : "▦") + "\n" + label, idx==3||idx==4?15:19, WHITE, true);
             card.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             card.setGravity(Gravity.CENTER);
@@ -306,40 +302,6 @@ public final class NativePreviewActivity extends Activity {
         view.setTranslationZ(focus?dp(10):0);
     }
 
-    private void addContentRow(LinearLayout body,String heading,String[] names,String tag,int rowIndex){
-        body.addView(sectionTitle(heading,"ทั้งหมด   ›"));
-        HorizontalScrollView horizontal=new HorizontalScrollView(this);
-        horizontal.setHorizontalScrollBarEnabled(false);
-        LinearLayout cards=new LinearLayout(this);
-        cards.setPadding(dp(12),dp(10),dp(12),dp(15));
-        cards.setOrientation(LinearLayout.HORIZONTAL);
-        for(int i=0;i<names.length;i++){
-            final String title=names[i];
-            final int palette=(rowIndex*2+i)%4;
-            int[] colors={0xFF263D56,0xFF684435,0xFF333264,0xFF17565D};
-            TextView cover=text(tag+"    ·    DEMO\n\n"+title+"\n"+(rowIndex==2?"45 นาที":"2026  ·  4K"),16,WHITE,true);
-            cover.setGravity(Gravity.BOTTOM|Gravity.START);
-            cover.setPadding(dp(16),dp(12),dp(16),dp(16));
-            cover.setFocusable(true);cover.setClickable(true);
-            cover.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                    new int[]{colors[palette],0xFF141922}));
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(230),dp(137));
-            lp.setMargins(dp(6),dp(4),dp(6),dp(4));
-            cards.addView(cover,lp);
-            cover.setOnFocusChangeListener((v,focused)->{
-                styleFocus(cover,colors[palette],focused);
-                if(focused){
-                    heroTitle.setText(title);
-                    heroGenre.setText(rowIndex==2?"ตอนจากซีรีส์ · 45 นาที":"DEMO · ภาพยนตร์และซีรีส์");
-                    heroArt.setPalette(palette);
-                }
-            });
-            cover.setOnClickListener(v->information(title,"รายการตัวอย่างเพื่อทดสอบ Navigation และ Episode เท่านั้น ไม่ได้เชื่อมต่อแอปสตรีมมิง"));
-        }
-        horizontal.addView(cards);
-        body.addView(horizontal,new LinearLayout.LayoutParams(-1,dp(168)));
-    }
-
     private void launchApp(String id){
         if (id.startsWith("pkg:")) {
             if (!launchPackage(id.substring(4), id)) information("แอป", "ไม่พบแอปนี้แล้ว");
@@ -389,6 +351,8 @@ public final class NativePreviewActivity extends Activity {
                 if(info.activityInfo==null || !info.activityInfo.exported || !info.activityInfo.enabled)continue;
                 String pkg=info.activityInfo.packageName;
                 if(getPackageName().equals(pkg))continue;
+                String lower = pkg.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("factory") || lower.contains("hkcfac") || lower.contains("engineering") || lower.contains("engmode")) continue;
                 if(!discovered.containsKey(pkg))discovered.put(pkg,info);
             }
         }

@@ -18,6 +18,15 @@ def home(): return sh("cmd","package","resolve-activity","--brief","-a","android
 old=home()
 assert "/" in old and pkg not in old and "ResolverActivity" not in old, old
 disabled=sh("pm","list","packages","-d")
+recovery="scripts/phase-a-recovery.py"
+baseline=str(out/"recovery-private.json")
+call("python3",recovery,"backup","--serial",serial,"--file",baseline)
+aapt=os.path.join(os.environ["ANDROID_HOME"],"build-tools","34.0.0","aapt")
+manifest=call(aapt,"dump","xmltree",apk,"AndroidManifest.xml")
+(out/"manifest.txt").write_text(manifest)
+assert "android.intent.category.HOME" in manifest
+assert "uses-permission" not in manifest and "E: service " not in manifest and "E: receiver " not in manifest
+
 (out/"baseline.json").write_text(json.dumps({"home":old,"disabled":disabled,"sdk":30},indent=2))
 def screenshot(name):
     (out/name).write_bytes(subprocess.check_output(["adb","-s",serial,"exec-out","screencap","-p"]))
@@ -85,7 +94,7 @@ try:
     screenshot("04-home-after-reboot.png")
 finally:
     # Always restore the exact original component, even if an assertion fails.
-    (out/"restore.txt").write_text(sh("cmd","package","set-home-activity","--user","0",old))
+    (out/"restore.txt").write_text(call("python3",recovery,"restore","--serial",serial,"--file",baseline))
     sh("am","start","-a","android.intent.action.MAIN","-c","android.intent.category.HOME")
     time.sleep(1)
     assert home()==old

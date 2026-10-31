@@ -40,8 +40,10 @@ public class LauncherUiTest extends ActivityInstrumentationTestCase2<NativePrevi
         focusFirst(); hold(); key(KeyEvent.KEYCODE_DPAD_RIGHT); key(KeyEvent.KEYCODE_BACK);
         assertEquals("netflix,youtube,browser,prime,disney,settings", getActivity().getPreferences(0).getString("app_order",null));
         focusFirst(); hold(); key(KeyEvent.KEYCODE_DPAD_LEFT);
-        getInstrumentation().callActivityOnPause(getActivity());
-        getInstrumentation().callActivityOnResume(getActivity());
+        runTestOnUiThread(() -> {
+            getInstrumentation().callActivityOnPause(getActivity());
+            getInstrumentation().callActivityOnResume(getActivity());
+        });
         getInstrumentation().waitForIdleSync();
         assertEquals("netflix,youtube,browser,prime,disney,settings", getActivity().getPreferences(0).getString("app_order",null));
     }
